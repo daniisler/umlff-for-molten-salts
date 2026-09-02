@@ -1,0 +1,91 @@
+[project]
+name = "umlff-for-ms"
+version = "0.0.0"
+description = "Ultrafast machine-learned force fields"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dynamic = []
+
+authors = [
+    { name = "Daniel Isler", email = "isler@differ.nl"},
+    { name = "Marios Poulis", email = "poulis@differ.nl"},
+    { name = "Suleyman Er", email = "s.er@differ.nl"},
+]
+
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+# Core dependencies
+dependencies = [
+    "ase>=3.27,<4.0",
+    "numpy>=1.26,<3.0",
+]
+
+# Ruff config
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (unused imports, undefined names)
+    "I",   # import sorting
+    "B",   # flake8-bugbear (real bug risks)
+    "UP",  # pyupgrade (modern Python)
+    "SIM", # simplify code
+    "C4",  # comprehensions
+    "PIE", # misc useful improvements
+]
+ignore = ["E501"]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+docstring-code-format = true
+quote-style = "double"
+indent-style = "space"
+
+# Pylint config
+[tool.pylint.MAIN]
+ignore-paths = [
+]
+
+[tool.pylint.FORMAT]
+max-line-length = 200
+
+[tool.pylint.BASIC]
+good-names = [
+    "i",
+    "j",
+    "k",
+    "T",
+    "U",
+    "V",
+    "D",
+]
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = ["import-outside-toplevel"]
+
+[tool.pylint.DESIGN]
+max-attributes = 5
+max-positional-arguments = 10
+max-args = 10
+max-branches = 10
+max-locals = 20
+max-statements = 30
+
+[tool.pylint.TYPECHECK]
+ignored-modules = [
+    "moltensaltcalc",
+    "numpy",
+    "ase",
+    "scipy",
+    "pytest",
+    "nox",
+    "torch",
+    "torch_dftd",
+    "huggingface_hub",
+    "requests",
+    "tqdm",
+]
