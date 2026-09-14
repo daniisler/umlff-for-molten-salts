@@ -18,7 +18,9 @@ license-files = ["LICEN[CS]E*"]
 # Core dependencies
 dependencies = [
     "ase>=3.27,<4.0",
-    "numpy>=1.26,<3.0",
+    "mace-torch>=0.3.16",
+    "numpy<2.3",
+    "uf3>=0.4.0",
 ]
 
 # Ruff config
@@ -88,4 +90,10 @@ ignored-modules = [
     "huggingface_hub",
     "requests",
     "tqdm",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.3.0",
+    "pre-commit>=4.6.2",
 ]
