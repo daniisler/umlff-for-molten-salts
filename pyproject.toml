@@ -20,6 +20,7 @@ dependencies = [
     "ase>=3.27,<4.0",
     "mace-torch>=0.3.16",
     "numpy<2.3",
+    "tqdm>=4.66",
     "uf3>=0.4.0",
 ]
 
@@ -67,7 +68,7 @@ good-names = [
 ]
 
 [tool.pylint."MESSAGES CONTROL"]
-disable = ["import-outside-toplevel"]
+disable = ["import-outside-toplevel", "duplicate-code"]
 
 [tool.pylint.DESIGN]
 max-attributes = 5
@@ -79,6 +80,7 @@ max-statements = 30
 
 [tool.pylint.TYPECHECK]
 ignored-modules = [
+    "uf3",
     "moltensaltcalc",
     "numpy",
     "ase",

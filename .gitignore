@@ -219,3 +219,11 @@ __marimo__/
 
 # Space for custom rules
 data/
+
+# UF3 run outputs
+results/
+logs/
+
+# macOS
+.DS_Store
+**/.DS_Store
