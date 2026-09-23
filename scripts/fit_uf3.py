@@ -22,11 +22,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import random
 import socket
 import time
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -71,6 +73,7 @@ class RunConfig:  # pylint: disable=too-many-instance-attributes
     force: bool
     probe_only: bool
     save_predictions: bool
+    n_jobs: int
 
     @property
     def degree(self) -> int:
@@ -133,11 +136,41 @@ def build_basis(cfg: RunConfig, elements: list[str]) -> tuple[ChemicalSystem, BS
     return chem, basis
 
 
-def featurize(frames: list, basis: BSplineBasis, prefix: str, progress: str = "bar"):
-    """Turn structures into the B-spline design matrix (the slow step)."""
+def default_n_jobs() -> int:
+    """Number of usable CPU cores (respects a SLURM/cgroup allocation on Linux)."""
+    try:
+        return max(1, len(os.sched_getaffinity(0)))
+    except AttributeError:
+        return os.cpu_count() or 1
+
+
+def featurize(
+    frames: list,
+    basis: BSplineBasis,
+    prefix: str,
+    n_jobs: int = 1,
+    progress: str = "bar",
+):
+    """Turn structures into the B-spline design matrix (the slow step).
+
+    Featurization is the bottleneck; with ``n_jobs >= 2`` it is parallelized
+    across CPU cores via ``evaluate_parallel`` (identical output to serial).
+    """
     coordinator = DataCoordinator(energy_key="energy", force_key="force")
     coordinator.dataframe_from_lists(frames, prefix=prefix)
-    return BasisFeaturizer(basis).evaluate(coordinator.consolidate(), energy_key="energy", progress=progress)
+    df_data = coordinator.consolidate()
+    featurizer = BasisFeaturizer(basis)
+    if n_jobs >= 2:
+        with ProcessPoolExecutor(max_workers=n_jobs) as client:
+            return featurizer.evaluate_parallel(
+                df_data,
+                client=client,
+                energy_key="energy",
+                n_jobs=n_jobs,
+                shuffle=False,
+                progress=progress,
+            )
+    return featurizer.evaluate(df_data, energy_key="energy", progress=progress)
 
 
 def natoms_per_energy(feats) -> np.ndarray:
@@ -213,7 +246,7 @@ def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
     """Execute one full run: load, (probe), fit, evaluate, and save."""
     started = time.time()
     rng = set_seeds(cfg.seed)
-    print(f"[UF3] mode={cfg.mode} seed={cfg.seed} host={socket.gethostname()} (CPU/RAM job, no GPU used)")
+    print(f"[UF3] mode={cfg.mode} seed={cfg.seed} n_jobs={cfg.n_jobs} host={socket.gethostname()}")
 
     train_path = cfg.data_dir / cfg.train_file
     test_path = cfg.data_dir / cfg.test_file
@@ -226,7 +259,11 @@ def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
     )
 
     n_features, gram_gb = probe_feature_count(basis, train[0])
-    print(f"[UF3] features={n_features:,}  estimated gram-matrix RAM ~{gram_gb:.1f} GB")
+    rows = len(train) * (1 + 3 * len(train[0]))
+    design_gb = rows * n_features * 8 / 1e9
+    print(
+        f"[UF3] features={n_features:,}  estimated peak RAM: design matrix ~{design_gb:.1f} GB + gram ~{gram_gb:.1f} GB"
+    )
     if cfg.probe_only:
         return
     if cfg.degree >= 3 and n_features > cfg.max_features and not cfg.force:
@@ -235,13 +272,13 @@ def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
             "Lower --cutoff3/--res3, restrict --elements, or pass --force."
         )
 
-    feats_train = featurize(train, basis, "train")
+    feats_train = featurize(train, basis, "train", n_jobs=cfg.n_jobs)
     model = fit_model(cfg, basis, feats_train)
     finite = bool(np.all(np.isfinite(model.coefficients)))
     print(f"[UF3] fit done, coefficients finite={finite}")
 
     test = reservoir_sample(test_path, cfg.n_test, rng, "sampling test")
-    feats_test = featurize(test, basis, "test")
+    feats_test = featurize(test, basis, "test", n_jobs=cfg.n_jobs)
     evaluation = evaluate_model(model, feats_test)
 
     report = {
@@ -296,6 +333,12 @@ def parse_args() -> RunConfig:  # pylint: disable=too-many-locals
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--probe-only", action="store_true")
     parser.add_argument("--no-predictions", action="store_true")
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=0,
+        help="parallel featurization cores (0 = all allocated)",
+    )
     args = parser.parse_args()
 
     run_name = args.run_name or f"{args.mode}_n{args.n_train}_seed{args.seed}"
@@ -323,6 +366,7 @@ def parse_args() -> RunConfig:  # pylint: disable=too-many-locals
         force=args.force,
         probe_only=args.probe_only,
         save_predictions=not args.no_predictions,
+        n_jobs=args.n_jobs if args.n_jobs else default_n_jobs(),
     )
 
 

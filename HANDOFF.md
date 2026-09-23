@@ -3,6 +3,12 @@
 Everything needed to run the UF3 fit/evaluate script on the cluster. Full
 rationale, job matrix and expected numbers are in `docs/uf3_cluster_run_plan.md`.
 
+## Cores
+Featurization is parallelized across CPU cores. By default it uses all
+cores in your allocation (`len(os.sched_getaffinity)` on Linux); set it
+explicitly with `--n-jobs N` on any run. So request several cores
+(`--cpus-per-task 16`) and it will use them.
+
 ## Setup (once)
 ```bash
 git clone https://github.com/daniisler/umlff-for-molten-salts.git
@@ -90,7 +96,9 @@ uv run python scripts/fit_uf3.py --mode 3body --n-train 3000 --n-test 500 \
   --elements Ca Cl Zn --cutoff3 5.0 --res3 6
 ```
 A 4-element subsystem qualifies *more* frames (bigger dataset) but also has more
-triplet types, so always run `--probe-only` first. Good directional cations to add:
+triplet types. Run `--probe-only` first with the SAME `--n-train`/`--elements`
+you plan to use — it prints the estimated **peak RAM** (design matrix + gram) for
+that exact run, so you can size the node before submitting. Good directional cations to add:
 **Zn, Zr, Mg**; spherical controls: **Cs, Rb, K, Na**.
 
 ## Output
