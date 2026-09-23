@@ -227,3 +227,7 @@ logs/
 # macOS
 .DS_Store
 **/.DS_Store
+
+# kept local, not tracked
+Weekly Updates - Power Points/
+Tests/
