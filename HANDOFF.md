@@ -73,6 +73,26 @@ uv run python scripts/fit_uf3.py --mode 3body --n-train 1500 --n-test 400 \
 For a matched 2-body baseline on each subsystem, rerun the three with
 `--mode 2body` (the difference is the value of the 3-body term).
 
+### Add or enlarge subsystems (test more / bigger systems)
+The `sub_*` files are just filtered slices of `Training.extxyz`. Build new or
+larger subsystems with `make_subsystem.py`, then fit them:
+```bash
+# build a new subsystem (writes data/sub_CaClZn.extxyz)
+uv run python scripts/make_subsystem.py --elements Cl Ca Zn
+
+# check its 3-body size/RAM BEFORE fitting (more elements = more triplet types)
+uv run python scripts/fit_uf3.py --mode 3body --probe-only \
+  --train-file sub_CaClZn.extxyz --elements Ca Cl Zn --cutoff3 5.0 --res3 6
+
+# fit it (use as many frames as the subsystem has)
+uv run python scripts/fit_uf3.py --mode 3body --n-train 3000 --n-test 500 \
+  --train-file sub_CaClZn.extxyz --test-file sub_CaClZn.extxyz \
+  --elements Ca Cl Zn --cutoff3 5.0 --res3 6
+```
+A 4-element subsystem qualifies *more* frames (bigger dataset) but also has more
+triplet types, so always run `--probe-only` first. Good directional cations to add:
+**Zn, Zr, Mg**; spherical controls: **Cs, Rb, K, Na**.
+
 ## Output
 Each run writes `results/<run_name>/`:
 - `metrics.json` — config + energy MAE + force RMSE + timing
