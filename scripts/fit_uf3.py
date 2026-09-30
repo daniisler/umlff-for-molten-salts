@@ -357,7 +357,7 @@ def _experiment_tag(args: argparse.Namespace) -> str:
     return hashlib.md5(repr(fields).encode(), usedforsecurity=False).hexdigest()[:6]
 
 
-def parse_args() -> RunConfig:  # pylint: disable=too-many-locals
+def parse_args() -> RunConfig:  # pylint: disable=too-many-locals,too-many-statements
     """Parse the command line into a :class:`RunConfig`."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
@@ -386,7 +386,12 @@ def parse_args() -> RunConfig:  # pylint: disable=too-many-locals
     parser.add_argument("--res2", type=int, default=20, help="two-body spline resolution (knot intervals)")
     parser.add_argument("--cutoff3", type=float, default=10.0, help="three-body cutoff radius in Angstrom")
     parser.add_argument("--res3", type=int, default=11, help="three-body spline resolution per triplet edge")
-    parser.add_argument("--weight", type=float, default=0.5, help="weight of force rows vs energy rows in the fit")
+    parser.add_argument(
+        "--weight",
+        type=float,
+        default=0.5,
+        help="energy weight kappa in [0,1]; higher favors energy, lower favors forces",
+    )
     parser.add_argument("--ridge2", type=float, default=1e-4, help="two-body ridge (L2) regularization strength")
     parser.add_argument("--ridge3", type=float, default=1e-4, help="three-body ridge (L2) regularization strength")
     parser.add_argument("--curv2", type=float, default=1e-6, help="two-body curvature (smoothness) penalty strength")
@@ -414,6 +419,10 @@ def parse_args() -> RunConfig:  # pylint: disable=too-many-locals
         help="parallel featurization cores (0 = all allocated)",
     )
     args = parser.parse_args()
+    if not 0.0 <= args.weight <= 1.0:
+        parser.error(
+            "--weight is uf3's energy weight kappa and must be in [0, 1] (higher favors energy, lower favors forces)"
+        )
 
     # readable name: mode, elements (if given), frames, cutoff, weight, seed; the trailing
     # hash makes ANY other change (res, ridge, test file, ...) land in its own folder too
