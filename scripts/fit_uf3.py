@@ -21,6 +21,7 @@ Run ``python scripts/fit_uf3.py --help`` for the full option list.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -88,16 +89,6 @@ def set_seeds(seed: int) -> np.random.Generator:
     return np.random.default_rng(seed)
 
 
-def count_frames(path: Path) -> int:
-    """Count structures in an extended-xyz file (one ``Lattice=`` line each)."""
-    total = 0
-    with open(path, encoding="utf-8", errors="ignore") as handle:
-        for line in handle:
-            if "Lattice=" in line:
-                total += 1
-    return total
-
-
 def reservoir_sample(path: Path, n_keep: int, rng: np.random.Generator, desc: str) -> list:
     """Uniformly sample ``n_keep`` frames in one streaming pass (Algorithm R).
 
@@ -105,9 +96,8 @@ def reservoir_sample(path: Path, n_keep: int, rng: np.random.Generator, desc: st
     makes the selection reproducible. The energy stored in each frame's attached
     calculator is copied into ``info['energy']`` because UF3 reads it from there.
     """
-    total = count_frames(path)
     reservoir: list = []
-    for index, atoms in enumerate(tqdm(iread(str(path)), total=total, desc=desc, unit="frame")):
+    for index, atoms in enumerate(tqdm(iread(str(path)), desc=desc, unit="frame")):
         if index < n_keep:
             reservoir.append(atoms)
         else:
@@ -120,14 +110,21 @@ def reservoir_sample(path: Path, n_keep: int, rng: np.random.Generator, desc: st
 
 
 def build_basis(cfg: RunConfig, elements: list[str]) -> tuple[ChemicalSystem, BSplineBasis]:
-    """Build the B-spline basis (pairs, and triangles when ``mode == 3body``)."""
+    """Build the B-spline basis: 1-D pair curves, plus 3-D triangle terms in 3-body mode.
+
+    Each pair (Cl-Cl, Cl-Zr, ...) gets a 1-D cubic B-spline over [r_min, cutoff2] with
+    ``res2`` knot intervals. In 3-body mode every triplet type additionally gets a 3-D
+    tensor-product spline over its three edge lengths.
+    """
     chem = ChemicalSystem(element_list=elements, degree=cfg.degree)
-    pairs = chem.interactions_map[2]
+    pairs = chem.interactions_map[2]  # all pair types (Cl-Cl, Cl-Zr, ...); map key 2 = two-body
+    # 1.0 A is the inner cutoff: atoms never sit closer, and it avoids the r->0 spline
+    # region; res2 sets how many knot intervals span [1.0, cutoff2]
     r_min = dict.fromkeys(pairs, 1.0)
     r_max = dict.fromkeys(pairs, cfg.cutoff2)
     resolution = dict.fromkeys(pairs, cfg.res2)
     if cfg.degree >= 3:
-        trios = chem.interactions_map[3]
+        trios = chem.interactions_map[3]  # all triplet types; map key 3 = three-body
         r_min.update({trio: [1.0, 1.0, 1.0] for trio in trios})
         # Two bonded edges reach cutoff3; the third edge can reach 2*cutoff3.
         r_max.update({trio: [cfg.cutoff3, cfg.cutoff3, 2 * cfg.cutoff3] for trio in trios})
@@ -175,11 +172,14 @@ def featurize(
 
 def natoms_per_energy(feats) -> np.ndarray:
     """Atoms per structure, aligned with the energy rows of the design matrix."""
+    # The design matrix is a pandas MultiIndex: level 0 = structure name, last level =
+    # row type ("energy" for the 1 energy row, else a force component). Each structure
+    # has 1 energy row and 3N force rows (x/y/z per atom), so N = (force rows) / 3.
     structures = feats.index.get_level_values(0)
     is_energy_row = feats.index.get_level_values(-1) == "energy"
-    energy_structures = list(structures[is_energy_row])
-    force_rows = Counter(structures[~is_energy_row])
-    return np.array([force_rows[name] // 3 for name in energy_structures])
+    energy_structures = list(structures[is_energy_row])  # one name per structure (energy-row order)
+    force_rows = Counter(structures[~is_energy_row])  # force rows per structure = 3N
+    return np.array([force_rows[name] // 3 for name in energy_structures])  # 3N // 3 -> N atoms
 
 
 def fit_model(cfg: RunConfig, basis: BSplineBasis, feats) -> WeightedLinearModel:
@@ -202,10 +202,10 @@ def evaluate_model(model: WeightedLinearModel, feats) -> dict:
     n_atoms = natoms_per_energy(feats)
     e_pred = model.predict(x_energy)
     f_pred = model.predict(x_force)
-    e_mae = float(np.mean(np.abs((e_pred - y_energy) / n_atoms)) * 1000.0)
-    e_rmse = float(np.sqrt(np.mean(((e_pred - y_energy) / n_atoms) ** 2)) * 1000.0)
-    f_rmse = float(np.sqrt(np.mean((f_pred - y_force) ** 2)) * 1000.0)
-    f_mae = float(np.mean(np.abs(f_pred - y_force)) * 1000.0)
+    e_mae = float(np.mean(np.abs((e_pred - y_energy) / n_atoms)) * 1000.0)  # meV/atom
+    e_rmse = float(np.sqrt(np.mean(((e_pred - y_energy) / n_atoms) ** 2)) * 1000.0)  # meV/atom
+    f_rmse = float(np.sqrt(np.mean((f_pred - y_force) ** 2)) * 1000.0)  # meV/A
+    f_mae = float(np.mean(np.abs(f_pred - y_force)) * 1000.0)  # meV/A
     metrics = {
         "energy_mae_meV_per_atom": e_mae,
         "energy_rmse_meV_per_atom": e_rmse,
@@ -243,14 +243,31 @@ def save_outputs(cfg: RunConfig, model: WeightedLinearModel, summary: dict) -> P
 
 
 def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
-    """Execute one full run: load, (probe), fit, evaluate, and save."""
+    """Execute one full UF3 fit-and-evaluate run, end to end.
+
+    Pipeline, in order:
+      1. Seed every RNG so the whole run is reproducible.
+      2. Reservoir-sample ``n_train`` frames from the training file (one streaming pass).
+      3. Detect the elements (unless given) and build the B-spline basis
+         (pairs, plus triangles in 3-body mode).
+      4. Probe a single frame to estimate the feature count and peak RAM, and
+         abort early if a 3-body basis would exceed ``--max-features`` (unless ``--force``).
+      5. Featurize the training frames into the design matrix (the slow step) and
+         solve the regularized linear least-squares problem for the coefficients.
+      6. Sample and featurize a held-out test set, then compute error metrics.
+      7. Assemble a JSON report (config + metrics + environment) and write
+         ``metrics.json``, ``model.json`` and ``predictions.npz``.
+    """
+    # --- 1. reproducible setup: seed every RNG so the run is deterministic ---
     started = time.time()
     rng = set_seeds(cfg.seed)
     print(f"[UF3] mode={cfg.mode} seed={cfg.seed} n_jobs={cfg.n_jobs} host={socket.gethostname()}")
 
+    # --- 2. sample training frames in one streaming reservoir pass ---
     train_path = cfg.data_dir / cfg.train_file
     test_path = cfg.data_dir / cfg.test_file
     train = reservoir_sample(train_path, cfg.n_train, rng, "sampling train")
+    # --- 3. detect elements (unless given) and build the pair/triangle B-spline basis ---
     elements = cfg.elements or sorted({sym for atoms in train for sym in atoms.get_chemical_symbols()})
     chem, basis = build_basis(cfg, elements)
     print(
@@ -258,7 +275,10 @@ def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
         f"trios={len(chem.interactions_map[3]) if cfg.degree >= 3 else 0} train={len(train)}"
     )
 
+    # --- 4. estimate cost from a single frame, then guard against a RAM blow-up ---
     n_features, gram_gb = probe_feature_count(basis, train[0])
+    # design-matrix rows = 1 energy + 3N force rows per frame; frame[0]'s atom count
+    # is representative (cells vary in size, so this is an estimate, not exact)
     rows = len(train) * (1 + 3 * len(train[0]))
     design_gb = rows * n_features * 8 / 1e9
     print(
@@ -272,15 +292,18 @@ def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
             "Lower --cutoff3/--res3, restrict --elements, or pass --force."
         )
 
+    # --- 5. featurize the training set (slow) and solve the least-squares fit ---
     feats_train = featurize(train, basis, "train", n_jobs=cfg.n_jobs)
     model = fit_model(cfg, basis, feats_train)
     finite = bool(np.all(np.isfinite(model.coefficients)))
     print(f"[UF3] fit done, coefficients finite={finite}")
 
+    # --- 6. sample + featurize a held-out test set, then compute error metrics ---
     test = reservoir_sample(test_path, cfg.n_test, rng, "sampling test")
     feats_test = featurize(test, basis, "test", n_jobs=cfg.n_jobs)
     evaluation = evaluate_model(model, feats_test)
 
+    # --- 7. assemble the JSON report and write metrics.json / model.json / predictions.npz ---
     report = {
         "config": {k: (str(v) if isinstance(v, Path) else v) for k, v in asdict(cfg).items()},
         "elements": elements,
@@ -307,32 +330,83 @@ def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
     print(f"[UF3] outputs written to {out_dir}")
 
 
+def _experiment_tag(args: argparse.Namespace) -> str:
+    """Short hash of the run-defining parameters, so ANY change gives a distinct output folder.
+
+    Only physics/data settings go into the hash (not run_name, results_dir, n_jobs or the
+    control flags), so two runs collide only when they would produce the same result.
+    """
+    fields = (
+        args.mode,
+        args.train_file,
+        args.test_file,
+        args.n_train,
+        args.n_test,
+        tuple(args.elements) if args.elements else None,
+        args.cutoff2,
+        args.res2,
+        args.cutoff3,
+        args.res3,
+        args.weight,
+        args.ridge2,
+        args.ridge3,
+        args.curv2,
+        args.curv3,
+        args.seed,
+    )
+    return hashlib.md5(repr(fields).encode(), usedforsecurity=False).hexdigest()[:6]
+
+
 def parse_args() -> RunConfig:  # pylint: disable=too-many-locals
     """Parse the command line into a :class:`RunConfig`."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
-    parser.add_argument("--train-file", default="Training.extxyz")
-    parser.add_argument("--test-file", default="Validation.extxyz")
-    parser.add_argument("--mode", choices=["2body", "3body"], default="2body")
-    parser.add_argument("--n-train", type=int, default=2000)
-    parser.add_argument("--n-test", type=int, default=500)
-    parser.add_argument("--elements", nargs="*", default=None)
-    parser.add_argument("--cutoff2", type=float, default=6.0)
-    parser.add_argument("--res2", type=int, default=15)
-    parser.add_argument("--cutoff3", type=float, default=4.0)
-    parser.add_argument("--res3", type=int, default=5)
-    parser.add_argument("--weight", type=float, default=0.3)
-    parser.add_argument("--ridge2", type=float, default=1e-4)
-    parser.add_argument("--ridge3", type=float, default=1e-4)
-    parser.add_argument("--curv2", type=float, default=1e-6)
-    parser.add_argument("--curv3", type=float, default=1e-6)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--run-name", default=None)
-    parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS_DIR)
-    parser.add_argument("--max-features", type=int, default=60000)
-    parser.add_argument("--force", action="store_true")
-    parser.add_argument("--probe-only", action="store_true")
-    parser.add_argument("--no-predictions", action="store_true")
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=DEFAULT_DATA_DIR,
+        help="folder containing the .extxyz data files",
+    )
+    parser.add_argument("--train-file", default="Training.extxyz", help="training structures file inside --data-dir")
+    parser.add_argument("--test-file", default="Validation.extxyz", help="evaluation structures file inside --data-dir")
+    parser.add_argument(
+        "--mode",
+        choices=["2body", "3body"],
+        default="2body",
+        help="2body = pair model; 3body adds the three-body term",
+    )
+    parser.add_argument("--n-train", type=int, default=2000, help="number of training frames to sample")
+    parser.add_argument("--n-test", type=int, default=500, help="number of evaluation frames to sample")
+    parser.add_argument(
+        "--elements",
+        nargs="*",
+        default=None,
+        help="species to include (default: auto-detect from frames)",
+    )
+    parser.add_argument("--cutoff2", type=float, default=8.0, help="two-body cutoff radius in Angstrom")
+    parser.add_argument("--res2", type=int, default=20, help="two-body spline resolution (knot intervals)")
+    parser.add_argument("--cutoff3", type=float, default=10.0, help="three-body cutoff radius in Angstrom")
+    parser.add_argument("--res3", type=int, default=11, help="three-body spline resolution per triplet edge")
+    parser.add_argument("--weight", type=float, default=0.5, help="weight of force rows vs energy rows in the fit")
+    parser.add_argument("--ridge2", type=float, default=1e-4, help="two-body ridge (L2) regularization strength")
+    parser.add_argument("--ridge3", type=float, default=1e-4, help="three-body ridge (L2) regularization strength")
+    parser.add_argument("--curv2", type=float, default=1e-6, help="two-body curvature (smoothness) penalty strength")
+    parser.add_argument("--curv3", type=float, default=1e-6, help="three-body curvature (smoothness) penalty strength")
+    parser.add_argument("--seed", type=int, default=42, help="random seed for reproducible frame sampling")
+    parser.add_argument("--run-name", default=None, help="output subfolder name (default: mode_nN_seedS)")
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=DEFAULT_RESULTS_DIR,
+        help="parent folder for run output subfolders",
+    )
+    parser.add_argument("--max-features", type=int, default=60000, help="abort 3-body runs above this feature count")
+    parser.add_argument("--force", action="store_true", help="override the --max-features guard and run anyway")
+    parser.add_argument("--probe-only", action="store_true", help="report feature count + RAM, then stop (no fit)")
+    parser.add_argument(
+        "--no-predictions",
+        action="store_true",
+        help="skip writing predictions.npz (keep metrics+model)",
+    )
     parser.add_argument(
         "--n-jobs",
         type=int,
@@ -341,7 +415,13 @@ def parse_args() -> RunConfig:  # pylint: disable=too-many-locals
     )
     args = parser.parse_args()
 
-    run_name = args.run_name or f"{args.mode}_n{args.n_train}_seed{args.seed}"
+    # readable name: mode, elements (if given), frames, cutoff, weight, seed; the trailing
+    # hash makes ANY other change (res, ridge, test file, ...) land in its own folder too
+    elems = f"{''.join(args.elements)}_" if args.elements else ""
+    cutoff = args.cutoff3 if args.mode == "3body" else args.cutoff2
+    run_name = args.run_name or (
+        f"{args.mode}_{elems}n{args.n_train}_c{cutoff:g}_w{args.weight:g}_seed{args.seed}_{_experiment_tag(args)}"
+    )
     return RunConfig(
         data_dir=args.data_dir,
         train_file=args.train_file,

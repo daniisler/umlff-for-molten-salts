@@ -3,6 +3,18 @@
 Everything needed to run the UF3 fit/evaluate script on the cluster. Full
 rationale, job matrix and expected numbers are in `docs/uf3_cluster_run_plan.md`.
 
+## What changed
+- **Always use disjoint train/test files.** Sampling both from the *same* file
+  leaks frames between fit and evaluation and flatters the error. Every command
+  below now uses a `*_train` / `*_test` pair. Disjoint splits for two subsystems
+  are already in `data/` (`sub_CsZrCl_*`, `sub_KRbCl_*`); make more with the new
+  `scripts/split_frames.py` (seeded 80/20).
+- **Output folders are self-naming now.** `run_name` encodes mode, elements,
+  frames, cutoff, weight, seed and a hash of every other parameter, so no two
+  configs overwrite each other (e.g. `3body_CsZrCl_n1500_c5_w0.5_seed42_1a2b3c`).
+- **`fit_uf3.py` was cleaned up** (docstrings, single-pass sampling, unit-tagged
+  metrics) — no change to the CLI or the fit math; still ruff-clean.
+
 ## Cores
 Featurization is parallelized across CPU cores. By default it uses all
 cores in your allocation (`len(os.sched_getaffinity)` on Linux); set it
@@ -23,9 +35,9 @@ If `uv` is missing: `curl -LsSf https://astral.sh/uv/install.sh | sh` (or `pip i
 ## Smoke test (~1 min — do this first)
 ```bash
 uv run python scripts/fit_uf3.py --mode 2body --n-train 30 --n-test 15 \
-  --train-file sub_KRbCl.extxyz --test-file sub_KRbCl.extxyz
+  --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz
 ```
-Expect a `RESULT ...` line and a `results/2body_n30_seed42/` folder.
+Expect a `RESULT ...` line and a `results/2body_n30_c8_w0.5_seed42_<hash>/` folder.
 
 ## Runs
 
@@ -38,6 +50,7 @@ so subsampling frames does NOT make it fit. Different levers.
 Every 10th of 68,400 ≈ 6,840 frames (~30 GB RAM, fits a normal node). The script
 samples by count, not stride, but a seeded random 6,840 gives the same coverage.
 The 2-body force error plateaus, so this is effectively the "all data" answer.
+`Training.extxyz` and `Validation.extxyz` are already disjoint files:
 ```bash
 uv run python scripts/fit_uf3.py --mode 2body --n-train 6840 --n-test 5820
 ```
@@ -57,42 +70,48 @@ uv run python scripts/fit_uf3.py --mode 3body --n-train 2000 --n-test 500 \
 ```
 
 ### 3-body on single-salt subsystems — the real 3-body result
-Only 18 triplet types, so it is tractable. Each subsystem file has ~2,500 frames,
-so ~1,500 is plenty. Run all three:
+Only 18 triplet types, so it is tractable. Each subsystem's train file has
+~2,000 frames, so ~1,500 is plenty. Zr and K/Rb splits already exist; make Mg's
+once with `split_frames.py`. Run all three:
 ```bash
-# Mg (directional)
+# Mg (directional) — make the disjoint split once, then fit
+uv run python scripts/split_frames.py --input sub_CaMgCl.extxyz
 uv run python scripts/fit_uf3.py --mode 3body --n-train 1500 --n-test 400 \
-  --train-file sub_CaMgCl.extxyz --test-file sub_CaMgCl.extxyz \
+  --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz \
   --elements Ca Cl Mg --cutoff3 5.0 --res3 6
 
-# Zr (directional)
+# Zr (directional) — split already in data/
 uv run python scripts/fit_uf3.py --mode 3body --n-train 1500 --n-test 400 \
-  --train-file sub_CsZrCl.extxyz --test-file sub_CsZrCl.extxyz \
+  --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz \
   --elements Cl Cs Zr --cutoff3 5.0 --res3 6
 
-# K/Rb (spherical control)
+# K/Rb (spherical control) — split already in data/
 uv run python scripts/fit_uf3.py --mode 3body --n-train 1500 --n-test 400 \
-  --train-file sub_KRbCl.extxyz --test-file sub_KRbCl.extxyz \
+  --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz \
   --elements Cl K Rb --cutoff3 5.0 --res3 6
 ```
 
 For a matched 2-body baseline on each subsystem, rerun the three with
-`--mode 2body` (the difference is the value of the 3-body term).
+`--mode 2body` and the SAME `*_train` / `*_test` pair (the difference is the
+value of the 3-body term).
 
 ### Add or enlarge subsystems (test more / bigger systems)
 The `sub_*` files are just filtered slices of `Training.extxyz`. Build new or
-larger subsystems with `make_subsystem.py`, then fit them:
+larger subsystems with `make_subsystem.py`, split them, then fit:
 ```bash
 # build a new subsystem (writes data/sub_CaClZn.extxyz)
 uv run python scripts/make_subsystem.py --elements Cl Ca Zn
 
+# split into disjoint train/test (writes data/sub_CaClZn_train.extxyz + _test.extxyz)
+uv run python scripts/split_frames.py --input sub_CaClZn.extxyz
+
 # check its 3-body size/RAM BEFORE fitting (more elements = more triplet types)
 uv run python scripts/fit_uf3.py --mode 3body --probe-only \
-  --train-file sub_CaClZn.extxyz --elements Ca Cl Zn --cutoff3 5.0 --res3 6
+  --train-file sub_CaClZn_train.extxyz --elements Ca Cl Zn --cutoff3 5.0 --res3 6
 
 # fit it (use as many frames as the subsystem has)
 uv run python scripts/fit_uf3.py --mode 3body --n-train 3000 --n-test 500 \
-  --train-file sub_CaClZn.extxyz --test-file sub_CaClZn.extxyz \
+  --train-file sub_CaClZn_train.extxyz --test-file sub_CaClZn_test.extxyz \
   --elements Ca Cl Zn --cutoff3 5.0 --res3 6
 ```
 A 4-element subsystem qualifies *more* frames (bigger dataset) but also has more
@@ -102,12 +121,10 @@ that exact run, so you can size the node before submitting. Good directional cat
 **Zn, Zr, Mg**; spherical controls: **Cs, Rb, K, Na**.
 
 ## Output
-Each run writes `results/<run_name>/`:
+Each run writes `results/<run_name>/` (the folder name encodes the full config):
 - `metrics.json` — config + energy MAE + force RMSE + timing
 - `model.json` — the fitted coefficients
 - `predictions.npz` — per-structure/atom predicted vs reference (for parity plots)
-
-Send the `results/` folder back.
 
 ## SLURM
 Edit `scripts/run_slurm.sh` for the cluster's partition/module names, pick a run,
