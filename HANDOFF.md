@@ -204,10 +204,10 @@ Each run writes `results/<run_name>/` (the folder name encodes the full config):
 - `model.json` — the fitted coefficients
 - `predictions.npz` — per-structure/atom predicted vs reference (for parity plots)
 
-## SLURM — run the whole matrix in parallel (job array)
-`scripts/run_slurm.sh` is a SLURM **job array**: each array task runs one line of
-`scripts/jobs.txt` through the batched (split-RAM) fit, so many large runs go at once
-and big frame counts fit on a normal node. `jobs.txt` already holds the matrix:
+## Running the matrix in parallel
+`scripts/run_jobs.sh` is a **plain shell runner** (no scheduler needed): it runs each
+line of `scripts/jobs.txt` through the batched (split-RAM) fit, N at a time, so many
+large runs go at once and big frame counts fit in memory. `jobs.txt` holds the matrix:
 - **Track A (lines 1-12):** 2-body on the full 12-element set, n = 2k/5k/10k/20k x 3
   seeds each -- "different large sets" at scale (learning curve + seed spread).
 - **Track B (lines 13-21):** 3-body on Cs-Zr-Cl, n = 500/1000/1500 x 3 seeds,
@@ -220,12 +220,17 @@ uv run python -c "from ase.io import read,write; import numpy as np; \
   fr=read('data/Validation.extxyz',':'); i=sorted(np.random.default_rng(0).permutation(len(fr))[:2000]); \
   write('data/Validation_test2k.extxyz',[fr[k] for k in i])"
 ```
-Edit the partition/account + env lines at the top of `run_slurm.sh`, then submit:
+Then just run it (tune `N_PARALLEL`/`CORES_PER_JOB` to the box; `RUN` overrides how
+python is launched, default `uv run python`):
 ```bash
-sbatch --array=1-$(grep -vc '^#' scripts/jobs.txt) scripts/run_slurm.sh   # everything
-sbatch --array=1-12  scripts/run_slurm.sh                                 # 2-body only
-sbatch --array=13-21 scripts/run_slurm.sh                                 # 3-body only
+bash scripts/run_jobs.sh                 # everything, N_PARALLEL at a time
+N_PARALLEL=8 bash scripts/run_jobs.sh    # 8 jobs at once
+bash scripts/run_jobs.sh 1 12            # 2-body only (lines 1..12)
+bash scripts/run_jobs.sh 13 21           # 3-body only (lines 13..21)
 ```
+Each job's stdout/stderr goes to `logs/job_NN.log`. (For an actual SLURM cluster later,
+`scripts/run_slurm.sh` wraps the same jobs.txt as a job array — adapt its `#SBATCH`
+lines to that site; the plain runner above is all you need on a normal server.)
 Each task writes `results/<run_name>/metrics.json` (self-naming, no clobber). Gather
 them into one table when done:
 ```bash
