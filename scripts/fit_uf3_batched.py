@@ -186,8 +186,9 @@ def parse_args() -> tuple[F.RunConfig, int]:
     p.add_argument("--elements", nargs="*", default=None, help="species to include (default: auto-detect from frames)")
     p.add_argument("--cutoff2", type=float, default=8.0, help="two-body cutoff radius in Angstrom")
     p.add_argument("--res2", type=int, default=20, help="two-body spline resolution (knot intervals)")
-    p.add_argument("--cutoff3", type=float, default=8.0, help="three-body cutoff radius in Angstrom")
-    p.add_argument("--res3", type=int, default=11, help="three-body spline resolution per triplet edge")
+    # 3-body defaults: cutoff3=5 (force knee from the cutoff sweep), res3=6 (working value, not yet swept)
+    p.add_argument("--cutoff3", type=float, default=5.0, help="three-body cutoff radius in Angstrom")
+    p.add_argument("--res3", type=int, default=6, help="three-body spline resolution per triplet edge")
     p.add_argument(
         "--weight",
         type=float,
