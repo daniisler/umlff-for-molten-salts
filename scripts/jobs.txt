@@ -1,0 +1,25 @@
+# Track A — 2-body on the FULL 12-element set: different LARGE sets (n x seed).
+# Fixed 2000-frame test (Validation_test2k.extxyz) so every job scores the same test.
+--mode 2body --n-train 2000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 1 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 2000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 2 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 2000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 3 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 5000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 1 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 5000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 2 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 5000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 3 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 10000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 1 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 10000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 2 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 10000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 3 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 20000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 1 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 20000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 2 --frame-batch 1000 --no-predictions
+--mode 2body --n-train 20000 --n-test 2000 --train-file Training.extxyz --test-file Validation_test2k.extxyz --seed 3 --frame-batch 1000 --no-predictions
+# Track B — 3-body on the Cs-Zr-Cl subsystem: check the result at larger n (n x seed).
+# cutoff3=5 res3=6 (proven working values; comparable to the -46%/-48% result).
+--mode 3body --n-train 500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 1 --frame-batch 300 --no-predictions
+--mode 3body --n-train 500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 2 --frame-batch 300 --no-predictions
+--mode 3body --n-train 500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 3 --frame-batch 300 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 1 --frame-batch 300 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 2 --frame-batch 300 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 3 --frame-batch 300 --no-predictions
+--mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 1 --frame-batch 300 --no-predictions
+--mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 2 --frame-batch 300 --no-predictions
+--mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 3 --frame-batch 300 --no-predictions

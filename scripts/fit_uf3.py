@@ -384,12 +384,14 @@ def parse_args() -> RunConfig:  # pylint: disable=too-many-locals,too-many-state
     )
     parser.add_argument("--cutoff2", type=float, default=8.0, help="two-body cutoff radius in Angstrom")
     parser.add_argument("--res2", type=int, default=20, help="two-body spline resolution (knot intervals)")
-    parser.add_argument("--cutoff3", type=float, default=10.0, help="three-body cutoff radius in Angstrom")
+    parser.add_argument("--cutoff3", type=float, default=8.0, help="three-body cutoff radius in Angstrom")
     parser.add_argument("--res3", type=int, default=11, help="three-body spline resolution per triplet edge")
+    # default 0.3: force-leaning balance from the 2-body weight sweep (near-best force,
+    # noticeably better energy than lower kappa); re-tune per model (3-body optimum may differ)
     parser.add_argument(
         "--weight",
         type=float,
-        default=0.5,
+        default=0.3,
         help="energy weight kappa in [0,1]; higher favors energy, lower favors forces",
     )
     parser.add_argument("--ridge2", type=float, default=1e-4, help="two-body ridge (L2) regularization strength")

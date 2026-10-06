@@ -56,6 +56,64 @@ uv run python scripts/fit_uf3.py --mode 2body --n-train 6840 --n-test 5820
 ```
 (`--n-test 5820` = the full Validation set; use `2000` for a lighter test.)
 
+### 2-body frame-count sweep — does more data help? (validation)
+Open question from the Week-4 review: the 2-body error looks flat, but does it
+keep improving — or drift UP — with more frames? To read a sweep you first need
+the noise floor: **10 random 200-frame draws on Cs–Zr–Cl gave force RMSE
+267.5 ± 1.4 meV/Å (total spread 4.8)**. So in the sweeps below, a change
+**bigger than ~3 meV/Å is a real data-scaling effect; anything smaller is just
+which frames got picked.** Keep the test set and the seed FIXED across each sweep.
+
+**A. Cs–Zr–Cl subsystem (cheap; apples-to-apples with the noise floor).**
+Capped by how many Cs–Zr–Cl frames exist in the DFT data (~2,975 total → ~2,380
+train), so this only reaches ~2,000 — it refines the within-subsystem curve, it
+does NOT reach "lots more frames" (that is part B). Runs fine on a laptop.
+```bash
+for n in 200 400 800 1600 2000; do
+  uv run python scripts/fit_uf3.py --mode 2body --n-train $n --n-test 595 \
+    --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz \
+    --elements Cl Cs Zr --seed 42 --no-predictions
+done
+```
+
+**B. Full 12-element set (the real "more frames" curve — this is the cluster job).**
+`Training.extxyz` (68,400 frames) and `Validation.extxyz` are already disjoint,
+so no split needed. This is where more frames actually live. **RAM caution:** for
+the 2-body, memory grows with FRAMES, not features — the design matrix is roughly
+frames × (1 + 3N) × n_features × 8 bytes (~1,800 features at res2=20). ~10k frames
+is tens of GB and the `--max-features` guard does NOT catch it (that only guards
+feature count), so request a high-memory node (≥128 GB for ≥10k frames) and step
+the sweep up while watching usage.
+```bash
+for n in 500 1000 2000 5000 10000 20000; do
+  uv run python scripts/fit_uf3.py --mode 2body --n-train $n --n-test 2000 \
+    --train-file Training.extxyz --test-file Validation.extxyz \
+    --seed 42 --no-predictions
+done
+```
+Fixed `--n-test 2000` (a slice of Validation) for comparability — drop to 500 if
+the test featurization is heavy. No `--elements` → it auto-detects all 12.
+
+**Lower-RAM option — `fit_uf3_batched.py` (the "split-RAM" fit).** This runs the
+*exact same* 2-body fit (coefficients verified identical to ~1e-7) but accumulates
+the gram X^T W X over frame batches, so peak RAM is one batch (`--frame-batch`,
+e.g. 500) plus the small gram — **independent of --n-train**. Use it for the big
+full-set sweeps and the ≥128 GB node is no longer required (a normal node works):
+```bash
+for n in 500 1000 2000 5000 10000 20000; do
+  uv run python scripts/fit_uf3_batched.py --mode 2body --n-train $n --n-test 2000 \
+    --train-file Training.extxyz --test-file Validation.extxyz \
+    --frame-batch 500 --seed 42 --no-predictions
+done
+```
+Only training is batched; keep `--n-test` modest (featurized in one pass). Same
+CLI, outputs and metrics as `fit_uf3.py`.
+
+**Reading it:** plot force RMSE vs n for each sweep. Flat within ±3 meV/Å →
+data-saturated, the expected 2-body bias limit. A real climb of ≥5–10 → the rigid
+pair curve is being pulled around by more/harder configs. Either outcome is a
+clean learning-curve result; the ±1.4 floor is the yardstick for "real vs noise".
+
 ### Full 12-species 3-body — feasibility probe (feature-limited, not frame-limited)
 Subsampling frames will not help here — the matrix is ~111k features wide
 regardless. Run the probe; it prints the feature count + RAM instantly and does
@@ -95,6 +153,26 @@ For a matched 2-body baseline on each subsystem, rerun the three with
 `--mode 2body` and the SAME `*_train` / `*_test` pair (the difference is the
 value of the 3-body term).
 
+### 3-body learning curve on a subsystem (does the 3-body saturate too?)
+The companion to the 2-body frame sweep. The 2-body force error *rises* with more
+frames (it is misspecified — blind to angles). The question: does the 3-body, which
+*can* see angles, instead keep improving or plateau low? Run it on Cs–Zr–Cl with the
+batched script so RAM is a non-issue (subsystem gram ~3,174² ≈ 80 MB):
+```bash
+for n in 60 120 250 500 1000 1500; do
+  uv run python scripts/fit_uf3_batched.py --mode 3body --n-train $n --n-test 400 \
+    --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz \
+    --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --frame-batch 300 --seed 42 --no-predictions
+done
+```
+**Here the limit is TIME, not RAM** — 3-body featurization is ~11 s/frame, so the big
+n take hours. This is a cluster/background job (`sbatch`), not a laptop one. For an
+apples-to-apples contrast, run the matching 2-body curve on the SAME frames
+(`--mode 2body`, same n / seed / test file) and plot the two force curves together —
+2-body should rise, 3-body should fall or plateau low. Reference points already
+measured (Cs–Zr–Cl, seed 42): **3-body n=60 → F 117.82 / E 3.85**; 2-body n=2000 →
+F 296 — the 3-body with 60 frames already beats the 2-body with 2000.
+
 ### Add or enlarge subsystems (test more / bigger systems)
 The `sub_*` files are just filtered slices of `Training.extxyz`. Build new or
 larger subsystems with `make_subsystem.py`, split them, then fit:
@@ -126,6 +204,38 @@ Each run writes `results/<run_name>/` (the folder name encodes the full config):
 - `model.json` — the fitted coefficients
 - `predictions.npz` — per-structure/atom predicted vs reference (for parity plots)
 
-## SLURM
-Edit `scripts/run_slurm.sh` for the cluster's partition/module names, pick a run,
-then `sbatch scripts/run_slurm.sh`.
+## SLURM — run the whole matrix in parallel (job array)
+`scripts/run_slurm.sh` is a SLURM **job array**: each array task runs one line of
+`scripts/jobs.txt` through the batched (split-RAM) fit, so many large runs go at once
+and big frame counts fit on a normal node. `jobs.txt` already holds the matrix:
+- **Track A (lines 1-12):** 2-body on the full 12-element set, n = 2k/5k/10k/20k x 3
+  seeds each -- "different large sets" at scale (learning curve + seed spread).
+- **Track B (lines 13-21):** 3-body on Cs-Zr-Cl, n = 500/1000/1500 x 3 seeds,
+  cutoff3=5 res3=6 -- checks the 3-body result with more data.
+
+One-time setup (also builds the fixed 2k test slice Track A needs):
+```bash
+uv sync && unzip umlff_data_archive.zip
+uv run python -c "from ase.io import read,write; import numpy as np; \
+  fr=read('data/Validation.extxyz',':'); i=sorted(np.random.default_rng(0).permutation(len(fr))[:2000]); \
+  write('data/Validation_test2k.extxyz',[fr[k] for k in i])"
+```
+Edit the partition/account + env lines at the top of `run_slurm.sh`, then submit:
+```bash
+sbatch --array=1-$(grep -vc '^#' scripts/jobs.txt) scripts/run_slurm.sh   # everything
+sbatch --array=1-12  scripts/run_slurm.sh                                 # 2-body only
+sbatch --array=13-21 scripts/run_slurm.sh                                 # 3-body only
+```
+Each task writes `results/<run_name>/metrics.json` (self-naming, no clobber). Gather
+them into one table when done:
+```bash
+uv run python -c "import json,glob,csv; \
+  R=[json.load(open(p)) for p in glob.glob('results/*/metrics.json')]; \
+  w=csv.writer(open('results/summary.csv','w',newline='')); \
+  w.writerow(['mode','elements','n_train','seed','force_rmse_meV_A','energy_mae_meV_at','wall_s']); \
+  [w.writerow([r['config']['mode'],'-'.join(r['elements']),r['n_train'],r['config']['seed'], \
+    r['metrics']['force_rmse_meV_per_ang'],r['metrics']['energy_mae_meV_per_atom'],r['wall_time_s']]) for r in R]; \
+  print('wrote results/summary.csv', len(R), 'runs')"
+```
+Add more experiments by appending flag-lines to `jobs.txt` (e.g. the cutoff3/res3
+sweep once the local preview picks a range). UF3 is CPU-bound -- no `--gres=gpu`.
