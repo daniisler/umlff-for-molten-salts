@@ -41,6 +41,7 @@ from pathlib import Path
 
 import fit_uf3 as F  # same scripts/ dir: reuse the shared pipeline
 import numpy as np
+from tqdm import tqdm
 from uf3.regression.least_squares import (
     VarianceRecorder,
     WeightedLinearModel,
@@ -71,7 +72,7 @@ def fit_model_batched(cfg: F.RunConfig, basis, train_frames: list, frame_batch: 
     gram_e = gram_f = ord_e = ord_f = None
     rec_e, rec_f = VarianceRecorder(), VarianceRecorder()  # global mean/std of energies & forces
     n_batches = 0
-    for start in range(0, len(train_frames), frame_batch):
+    for start in tqdm(range(0, len(train_frames), frame_batch), desc="fit (gram over batches)", unit="batch"):
         chunk = train_frames[start : start + frame_batch]
         feats = F.featurize(chunk, basis, f"batch{start}", n_jobs=n_jobs, progress=None)
         x_e, y_e, x_f, y_f = dataframe_to_tuples(feats)  # NO n_elements -> extensive energies (matches fit_uf3)
