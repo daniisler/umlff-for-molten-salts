@@ -23,3 +23,13 @@
 --mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 1 --frame-batch 300 --no-predictions
 --mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 2 --frame-batch 300 --no-predictions
 --mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 6 --seed 3 --frame-batch 300 --no-predictions
+# Track C — 3-body res3 CAPACITY sweep on Cs-Zr-Cl: does a finer angular grid bend the
+# force-rises-with-n curve down? Compare against Track B (res3=6, same n, seed 1).
+# cutoff3=5, seed 1 each to start. res3=8 -> 6,936 feats; res3=10 -> 12,579 feats (< max-features 60k).
+# Smaller frame-batch for res3=10 keeps per-batch RAM ~= Track B (its design-matrix rows are ~4x wider).
+--mode 3body --n-train 500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 8 --seed 1 --frame-batch 300 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 8 --seed 1 --frame-batch 300 --no-predictions
+--mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 8 --seed 1 --frame-batch 300 --no-predictions
+--mode 3body --n-train 500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --seed 1 --frame-batch 150 --no-predictions
