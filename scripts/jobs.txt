@@ -196,3 +196,80 @@
 --mode 3body --n-train 1500 --n-test 1000 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --seed 1 --frame-batch 150 --no-predictions
 --mode 3body --n-train 1500 --n-test 1000 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --seed 2 --frame-batch 150 --no-predictions
 --mode 3body --n-train 1500 --n-test 1000 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --seed 3 --frame-batch 150 --no-predictions
+
+# ============================================================================
+# Track H - VALIDATION AT THE NEW LOCKED 3-BODY OPERATING POINT (ridge3 = 1e-5).
+# Track D found ridge3=1e-5 (not the inherited 1e-4) is the force/energy optimum
+# (Cs-Zr-Cl n=1000 seed1: F 190->142, E 5.0->3.4). This re-validates it across the
+# whole directionality ladder + pins the exact minimum + tests the cutoff3 stack.
+# All res3=10, cutoff3=5, kappa=0.3, curv3=1e-6 unless noted.
+# PREREQ: the 6 subsystem split files already exist on the cluster (made for Track G).
+# ============================================================================
+# --- H1: directionality ladder, 3-body, ridge3=1e-5 (54 runs) ---
+# sub_KRbCl
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz --elements K Rb Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz --elements K Rb Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz --elements K Rb Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz --elements K Rb Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz --elements K Rb Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz --elements K Rb Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz --elements K Rb Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz --elements K Rb Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_KRbCl_train.extxyz --test-file sub_KRbCl_test.extxyz --elements K Rb Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+# sub_ClCsLi
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_ClCsLi_train.extxyz --test-file sub_ClCsLi_test.extxyz --elements Li Cs Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_ClCsLi_train.extxyz --test-file sub_ClCsLi_test.extxyz --elements Li Cs Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_ClCsLi_train.extxyz --test-file sub_ClCsLi_test.extxyz --elements Li Cs Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_ClCsLi_train.extxyz --test-file sub_ClCsLi_test.extxyz --elements Li Cs Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_ClCsLi_train.extxyz --test-file sub_ClCsLi_test.extxyz --elements Li Cs Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_ClCsLi_train.extxyz --test-file sub_ClCsLi_test.extxyz --elements Li Cs Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_ClCsLi_train.extxyz --test-file sub_ClCsLi_test.extxyz --elements Li Cs Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_ClCsLi_train.extxyz --test-file sub_ClCsLi_test.extxyz --elements Li Cs Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_ClCsLi_train.extxyz --test-file sub_ClCsLi_test.extxyz --elements Li Cs Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+# sub_CaMgCl
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz --elements Ca Mg Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz --elements Ca Mg Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz --elements Ca Mg Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz --elements Ca Mg Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz --elements Ca Mg Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz --elements Ca Mg Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz --elements Ca Mg Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz --elements Ca Mg Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_CaMgCl_train.extxyz --test-file sub_CaMgCl_test.extxyz --elements Ca Mg Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+# sub_BaClSr
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_BaClSr_train.extxyz --test-file sub_BaClSr_test.extxyz --elements Ba Sr Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_BaClSr_train.extxyz --test-file sub_BaClSr_test.extxyz --elements Ba Sr Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_BaClSr_train.extxyz --test-file sub_BaClSr_test.extxyz --elements Ba Sr Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_BaClSr_train.extxyz --test-file sub_BaClSr_test.extxyz --elements Ba Sr Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_BaClSr_train.extxyz --test-file sub_BaClSr_test.extxyz --elements Ba Sr Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_BaClSr_train.extxyz --test-file sub_BaClSr_test.extxyz --elements Ba Sr Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_BaClSr_train.extxyz --test-file sub_BaClSr_test.extxyz --elements Ba Sr Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_BaClSr_train.extxyz --test-file sub_BaClSr_test.extxyz --elements Ba Sr Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_BaClSr_train.extxyz --test-file sub_BaClSr_test.extxyz --elements Ba Sr Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+# sub_ClKZn
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_ClKZn_train.extxyz --test-file sub_ClKZn_test.extxyz --elements K Zn Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_ClKZn_train.extxyz --test-file sub_ClKZn_test.extxyz --elements K Zn Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 1000 --train-file sub_ClKZn_train.extxyz --test-file sub_ClKZn_test.extxyz --elements K Zn Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_ClKZn_train.extxyz --test-file sub_ClKZn_test.extxyz --elements K Zn Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_ClKZn_train.extxyz --test-file sub_ClKZn_test.extxyz --elements K Zn Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 1000 --train-file sub_ClKZn_train.extxyz --test-file sub_ClKZn_test.extxyz --elements K Zn Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_ClKZn_train.extxyz --test-file sub_ClKZn_test.extxyz --elements K Zn Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_ClKZn_train.extxyz --test-file sub_ClKZn_test.extxyz --elements K Zn Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 1000 --train-file sub_ClKZn_train.extxyz --test-file sub_ClKZn_test.extxyz --elements K Zn Cl --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+# sub_CsZrCl
+--mode 3body --n-train 500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 2 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1500 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 3 --frame-batch 150 --no-predictions
+# --- H2: fine ridge3 pin around 1e-5 (Cs-Zr-Cl n=1000 seed1; 1e-6/1e-5/1e-4 already in Track D) ---
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 5e-6 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 2e-5 --seed 1 --frame-batch 150 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.0 --res3 10 --weight 0.3 --ridge3 5e-5 --seed 1 --frame-batch 150 --no-predictions
+# --- H3: cutoff3 stack with ridge3=1e-5 (does cutoff3=6 + ridge3=1e-5 combine?) ---
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 5.5 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 120 --no-predictions
+--mode 3body --n-train 1000 --n-test 595 --train-file sub_CsZrCl_train.extxyz --test-file sub_CsZrCl_test.extxyz --elements Cl Cs Zr --cutoff3 6.0 --res3 10 --weight 0.3 --ridge3 1e-5 --seed 1 --frame-batch 100 --no-predictions
