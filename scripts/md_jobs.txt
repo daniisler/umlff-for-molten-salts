@@ -1,0 +1,28 @@
+# MD property sweeps -- the CLEAN 5 liquid properties (density, RDF, self-diffusion,
+# heat capacity Cp, thermal expansion alpha_V). One SALT per line:
+#
+#     <model_dir>  <prefix>  <cation>  <T1> <T2> <T3> ...
+#
+# Each line runs NPT+NVT at every temperature (400 atoms, 60000+60000 steps) and then
+# analyze_properties.py turns the sweep into the five properties. alpha_V and Cp are
+# slopes in T, which is why each salt is a sweep. Bulk modulus is excluded (0 K solid
+# property); viscosity is separate (scripts/viscosity.py).
+#
+# Run:  bash scripts/run_md_jobs.sh            # all
+#       bash scripts/run_md_jobs.sh 1 9        # only the 9 core salts (jobs 1..9)
+#       bash scripts/run_md_jobs.sh 5 5        # just job 5 (CsCl)
+#
+# Track 1 -- 9 core salts (well-referenced; carry the quantitative comparison)
+2body_LiCl_zbl    LiCl  Li   920  1070 1220
+2body_NaCl_zbl    NaCl  Na   1100 1250 1400
+2body_KRbCl_zbl   KCl   K    1075 1225 1375
+2body_KRbCl_zbl   RbCl  Rb   1020 1170 1320
+2body_CsCl_zbl    CsCl  Cs   950  1100 1250
+2body_CaMgCl_zbl  MgCl2 Mg   1000 1150 1300
+2body_CaMgCl_zbl  CaCl2 Ca   1075 1225 1375
+2body_SrCl_zbl    SrCl2 Sr   1180 1330 1480
+2body_BaCl_zbl    BaCl2 Ba   1270 1380 1490
+# Track 2 -- hard cases (Zn, Zr): run them, but expect poor results -> light analysis only.
+# (ZrCl4 > 765 K is model-only; Janz valid 710-765.)
+2body_ZnCl_zbl    ZnCl2 Zn   600  780  960
+2body_CsZrCl_zbl  ZrCl4 Zr   710  800  890
