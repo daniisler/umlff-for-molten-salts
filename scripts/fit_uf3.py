@@ -75,6 +75,9 @@ class RunConfig:  # pylint: disable=too-many-instance-attributes
     probe_only: bool
     save_predictions: bool
     n_jobs: int
+    zbl: bool
+    zbl_r_in: float
+    zbl_r_out: float
 
     @property
     def degree(self) -> int:
@@ -107,6 +110,23 @@ def reservoir_sample(path: Path, n_keep: int, rng: np.random.Generator, desc: st
     for atoms in reservoir:
         atoms.info["energy"] = atoms.get_potential_energy()
     return reservoir
+
+
+def subtract_zbl(frames: list, r_in: float, r_out: float) -> None:
+    """Subtract the ZBL baseline energy/forces from each frame, in place.
+
+    Uses the identical ZBLRepulsion calculator that the MoltenSaltCalc adapter adds
+    back at inference, so the fitted residual + ZBL exactly reproduces the DFT targets
+    where data exists, and is guaranteed repulsive at short range where it does not.
+    """
+    from moltensaltcalc.models.fit_uf3 import ZBLRepulsion
+
+    wall = ZBLRepulsion(r_in=r_in, r_out=r_out)
+    for atoms in tqdm(frames, desc="subtract ZBL", unit="frame"):
+        probe = atoms.copy()
+        probe.calc = wall
+        atoms.info["energy"] = atoms.info["energy"] - float(probe.get_potential_energy())
+        atoms.arrays["force"] = atoms.arrays["force"] - probe.get_forces()
 
 
 def build_basis(cfg: RunConfig, elements: list[str]) -> tuple[ChemicalSystem, BSplineBasis]:
@@ -242,7 +262,7 @@ def save_outputs(cfg: RunConfig, model: WeightedLinearModel, summary: dict) -> P
     return out_dir
 
 
-def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
+def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals,too-many-statements
     """Execute one full UF3 fit-and-evaluate run, end to end.
 
     Pipeline, in order:
@@ -267,6 +287,9 @@ def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
     train_path = cfg.data_dir / cfg.train_file
     test_path = cfg.data_dir / cfg.test_file
     train = reservoir_sample(train_path, cfg.n_train, rng, "sampling train")
+    if cfg.zbl:
+        print(f"[UF3] ZBL baseline: subtracting (r_in={cfg.zbl_r_in}, r_out={cfg.zbl_r_out}) from train targets")
+        subtract_zbl(train, cfg.zbl_r_in, cfg.zbl_r_out)
     # --- 3. detect elements (unless given) and build the pair/triangle B-spline basis ---
     elements = cfg.elements or sorted({sym for atoms in train for sym in atoms.get_chemical_symbols()})
     chem, basis = build_basis(cfg, elements)
@@ -300,6 +323,8 @@ def run(cfg: RunConfig) -> None:  # pylint: disable=too-many-locals
 
     # --- 6. sample + featurize a held-out test set, then compute error metrics ---
     test = reservoir_sample(test_path, cfg.n_test, rng, "sampling test")
+    if cfg.zbl:
+        subtract_zbl(test, cfg.zbl_r_in, cfg.zbl_r_out)
     feats_test = featurize(test, basis, "test", n_jobs=cfg.n_jobs)
     evaluation = evaluate_model(model, feats_test)
 
@@ -353,6 +378,9 @@ def _experiment_tag(args: argparse.Namespace) -> str:
         args.curv2,
         args.curv3,
         args.seed,
+        args.zbl,
+        args.zbl_r_in,
+        args.zbl_r_out,
     )
     return hashlib.md5(repr(fields).encode(), usedforsecurity=False).hexdigest()[:6]
 
@@ -400,6 +428,14 @@ def parse_args() -> RunConfig:  # pylint: disable=too-many-locals,too-many-state
     parser.add_argument("--curv2", type=float, default=1e-6, help="two-body curvature (smoothness) penalty strength")
     parser.add_argument("--curv3", type=float, default=1e-6, help="three-body curvature (smoothness) penalty strength")
     parser.add_argument("--seed", type=int, default=42, help="random seed for reproducible frame sampling")
+    parser.add_argument(
+        "--zbl",
+        action="store_true",
+        help="fit on the ZBL-baseline residual (DFT - ZBL); adds a physical short-range "
+        "repulsive core so NPT MD does not collapse. Run MD with repulsion on (the default).",
+    )
+    parser.add_argument("--zbl-r-in", type=float, default=4.0, help="ZBL full below this radius (A)")
+    parser.add_argument("--zbl-r-out", type=float, default=5.0, help="ZBL switched off above this radius (A)")
     parser.add_argument("--run-name", default=None, help="output subfolder name (default: mode_nN_seedS)")
     parser.add_argument(
         "--results-dir",
@@ -431,8 +467,9 @@ def parse_args() -> RunConfig:  # pylint: disable=too-many-locals,too-many-state
     # hash makes ANY other change (res, ridge, test file, ...) land in its own folder too
     elems = f"{''.join(args.elements)}_" if args.elements else ""
     cutoff = args.cutoff3 if args.mode == "3body" else args.cutoff2
+    zbl_tag = "_zbl" if args.zbl else ""
     run_name = args.run_name or (
-        f"{args.mode}_{elems}n{args.n_train}_c{cutoff:g}_w{args.weight:g}_seed{args.seed}_{_experiment_tag(args)}"
+        f"{args.mode}{zbl_tag}_{elems}n{args.n_train}_c{cutoff:g}_w{args.weight:g}_seed{args.seed}_{_experiment_tag(args)}"
     )
     return RunConfig(
         data_dir=args.data_dir,
@@ -459,6 +496,9 @@ def parse_args() -> RunConfig:  # pylint: disable=too-many-locals,too-many-state
         probe_only=args.probe_only,
         save_predictions=not args.no_predictions,
         n_jobs=args.n_jobs if args.n_jobs else default_n_jobs(),
+        zbl=args.zbl,
+        zbl_r_in=args.zbl_r_in,
+        zbl_r_out=args.zbl_r_out,
     )
 
 

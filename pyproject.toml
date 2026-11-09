@@ -19,6 +19,7 @@ license-files = ["LICEN[CS]E*"]
 dependencies = [
     "ase>=3.27,<4.0",
     "mace-torch>=0.3.16",
+    "moltensaltcalc",
     "numpy<2.3",
     "tqdm>=4.66",
     "uf3>=0.4.0",
@@ -81,6 +82,7 @@ max-statements = 30
 [tool.pylint.TYPECHECK]
 ignored-modules = [
     "uf3",
+    "matplotlib",
     "moltensaltcalc",
     "numpy",
     "ase",
@@ -93,6 +95,9 @@ ignored-modules = [
     "requests",
     "tqdm",
 ]
+
+[tool.uv.sources]
+moltensaltcalc = { path = "../MoltenSaltCalc" }
 
 [dependency-groups]
 dev = [
