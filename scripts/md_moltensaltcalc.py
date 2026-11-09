@@ -68,6 +68,18 @@ _TARGET_OVERRIDE = _arg(7, "")  # optional atom count override for finite-size c
 _CATION_OVERRIDE = _arg(8, "")  # optional comma-sep cation subset, e.g. "Zr" for pure ZrCl4
 DENSITY_GUESS = 2.5  # g/cm^3, rough starting box; NPT relaxes it
 DT_FS = 1.0
+# MoltenSaltCalc simulator parameters, pinned to the documented defaults
+# (https://moltensaltcalc.readthedocs.io/en/latest/Simulator_API/); steps are CLI args.
+TAUT_FS = 100.0  # NPT temperature coupling time (fs)
+TAUP_FS = 1000.0  # NPT pressure coupling time (fs)
+COMPRESSIBILITY = 5e-6  # 1/bar
+PRESSURE_BAR = 1.01325  # ~1 atm
+TCHAIN = 3  # MTK thermostat chain length
+PCHAIN = 3  # MTK barostat chain length
+TLOOP = 1  # MTK thermostat sub-steps
+PLOOP = 1  # MTK barostat sub-steps
+TDAMP_FS = 100.0  # NVT thermostat damping time (fs)
+NVT_DYN = "nosehoover"
 WRITE_EVERY = 10
 PRINT_EVERY = 200
 
@@ -140,6 +152,14 @@ atoms_eq = sim.run_npt_simulation(
     steps=NPT_STEPS,
     timestep_fs=DT_FS,
     npt_dyn=BAROSTAT,
+    taut_fs=TAUT_FS,
+    taup_fs=TAUP_FS,
+    compressibility_per_bar=COMPRESSIBILITY,
+    pressure_bar=PRESSURE_BAR,
+    tchain=TCHAIN,
+    pchain=PCHAIN,
+    tloop=TLOOP,
+    ploop=PLOOP,
     write_interval=WRITE_EVERY,
     print_interval=PRINT_EVERY,
     traj_file=NPT_TRAJ,
@@ -153,6 +173,8 @@ sim.run_nvt_simulation(
     T=T_K,
     steps=NVT_STEPS,
     timestep_fs=DT_FS,
+    nvt_dyn=NVT_DYN,
+    tdamp_fs=TDAMP_FS,
     write_interval=WRITE_EVERY,
     print_interval=PRINT_EVERY,
     traj_file=NVT_TRAJ,
