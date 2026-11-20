@@ -14,7 +14,7 @@ extra, into an env with `numpy < 2.3` (uf3 crashes on newer numpy):
 uv venv --python 3.12 .venv-msc && source .venv-msc/bin/activate
 uv pip install "numpy<2.3"
 uv pip install "moltensaltcalc[fit_uf3] @ git+https://github.com/leiapple/MoltenSaltCalc.git@marios/fit-uf3-backend"
-uv pip install matplotlib
+uv pip install matplotlib matscipy   # matscipy -> the fast UF3 backends (big MD speedup)
 ```
 
 (Without `uv`: make a venv with a Python 3.12 interpreter — `python3.12 -m venv ...` —
@@ -53,7 +53,45 @@ Jobs **1–9** are the well-referenced core salts; **10–11** (ZnCl2, ZrCl4) ar
 cases, expected to look poor. It is a large job — launch it in the background or via
 the scheduler. Bulk modulus is excluded (it is a 0 K solid property).
 
-## 4. Extras (optional)
+## 4. 3-body campaign -- the decisive test
+
+The run above is the **2-body** campaign (`md_jobs.txt`). The **3-body + ZBL** campaign is
+the same pipeline with an angular term added, and is the decisive test: does the 3-body term
+lift MgCl2's boiling point back above its melting point, fix the Ca/Zn under-density, and
+correct ZrCl4's too-weak thermal expansion -- the three things 2-body could not do.
+
+**Install is identical (section 1).** The same MoltenSaltCalc branch now also carries a
+**fast 3-body backend** (`fit_uf3_fast_3body`: analytic forces + analytic virial, one shared
+neighbour list, ~500x faster than the generic backend -- 70 -> 0.14 s/step at ~100 atoms).
+`md_moltensaltcalc.py` auto-selects it for degree-3 models, so nothing changes on your end.
+**matscipy must be installed** for the full speedup (it is in the section-1 install).
+
+**Fit the 11 models first** -- unlike the 2-body ZBL models, these are not committed. Needs
+`data/Training.extxyz` (the SuperSalt training set):
+
+```bash
+NTRAIN=500 bash scripts/fit_3body_models.sh        # -> results/3body_<X>Cl/model.json
+```
+
+Pure single-chloride fits at the locked 3-body operating point (cutoff3=5, res3=10,
+ridge3=1e-5, kappa=0.3, ZBL). 3-body featurization is slow (~tens of min per salt), and the
+per-cation jobs are independent -- split `CATIONS="..."` across nodes to parallelise.
+
+**Then run the campaign in two batches** -- Mg/Ca/Zn use **dt = 0.5 fs** (the 1 fs runs
+produced fake evaporation; the timestep test showed Ca/Zn hold at 0.5 fs, and Mg is the one
+genuine 2-body collapse):
+
+```bash
+JOBS_FILE=scripts/md_jobs_3body.txt bash scripts/run_md_jobs.sh 1 8              # 1 fs: monovalents + Sr/Ba + Zr
+DT_FS=0.5 JOBS_FILE=scripts/md_jobs_3body.txt bash scripts/run_md_jobs.sh 9 11   # 0.5 fs: Mg, Ca, Zn
+```
+
+Same production size (400 atoms, 60000 NPT + 60000 NVT, 3 T per salt) and same analysis ->
+`results/<salt>_properties.json` plus per-run `results/md_<salt>_<T>K/`. (If you installed
+into a plain venv rather than uv, prefix the fit and run commands with `RUN="python"`, as in
+section 3.)
+
+## 5. Extras (optional)
 
 - **Viscosity** — Green-Kubo, noisy and expensive, so kept separate. Run a dedicated
   long NVT, then analyse:
