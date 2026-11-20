@@ -26,13 +26,19 @@ lengths (a few ps) -> sanity, not a publishable number. Real benchmark: ~100 ps/
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
 import numpy as np
 from ase.optimize import FIRE
+from fit_uf3_fast import UF3FastCalculator  # sibling scripts/ module (on path when run as a script)
+from fit_uf3_fast_3body import UF3Fast3BodyCalculator
 from moltensaltcalc import MoltenSaltAnalyzer, MoltenSaltSimulator
+from moltensaltcalc.models.fit_uf3 import ZBLRepulsion
+from uf3.forcefield.calculator import UFCalculator
+from uf3.regression.least_squares import WeightedLinearModel
 
 np.random.seed(42)  # reproducible random start
 
@@ -67,7 +73,7 @@ BAROSTAT = _arg(6, "mtknpt")  # mtknpt (rigorous) | nptberendsen (crude)
 _TARGET_OVERRIDE = _arg(7, "")  # optional atom count override for finite-size check
 _CATION_OVERRIDE = _arg(8, "")  # optional comma-sep cation subset, e.g. "Zr" for pure ZrCl4
 DENSITY_GUESS = 2.5  # g/cm^3, rough starting box; NPT relaxes it
-DT_FS = 1.0
+DT_FS = float(os.environ.get("DT_FS", "1.0"))  # env override; 0.5 fs for Mg/Ca/Zn (1 fs timestep artifact)
 # MoltenSaltCalc simulator parameters, pinned to the documented defaults
 # (https://moltensaltcalc.readthedocs.io/en/latest/Simulator_API/); steps are CLI args.
 TAUT_FS = 100.0  # NPT temperature coupling time (fs)
@@ -83,16 +89,25 @@ NVT_DYN = "nosehoover"
 WRITE_EVERY = 10
 PRINT_EVERY = 200
 
-# ---- 1. simulator with the UF3 model ----
-sim = MoltenSaltSimulator(
-    model_name="fit_uf3",
-    model_parameters={"model_path": MODEL},
-    device="cpu",
-    dispersion=None,  # DFT training data already has D3
-)
+# ---- 1. simulator + FAST backend, chosen by the model's degree ----
+# UF3 is CPU-only; dispersion=None because the DFT training data already has D3.
+# Models were fit with the ZBL baseline (--zbl), so repulsion stays ON at inference.
+# degree 3 -> UF3Fast3BodyCalculator, degree 2 -> UF3FastCalculator (Daniel's 2-body fast).
+# Both are ~hundreds of x faster than the old 'fit_uf3' backend (analytic forces + virial).
+_ufcalc = UFCalculator(WeightedLinearModel.from_json(MODEL))
+_wall = ZBLRepulsion(r_in=4.0, r_out=5.0)
+if _ufcalc.degree == 3:
+    _fast = UF3Fast3BodyCalculator(_ufcalc, wall=_wall)
+elif _ufcalc.degree == 2:
+    _fast = UF3FastCalculator(_ufcalc, wall=_wall)
+else:
+    raise SystemExit(f"Unsupported UF3 degree {_ufcalc.degree} (expected 2 or 3).")
+sim = MoltenSaltSimulator(device="cpu", dispersion=None)  # no model_name; we attach the fast calc
+sim.calc = _fast
+print(f"[backend] fast UF3 degree-{_ufcalc.degree}: {type(_fast).__name__}")
 
 # ---- derive the composition from the MODEL's elements (keeps system == model) ----
-model_elements = list(sim.calc.elements)  # model's element symbols, exposed by the UF3 wrapper
+model_elements = list(sim.calc.elements)  # model's element symbols, exposed by the fast calc
 cations = [e for e in model_elements if e != ANION]
 if ANION not in model_elements:
     raise SystemExit(f"Model elements {model_elements} do not include the anion '{ANION}'.")

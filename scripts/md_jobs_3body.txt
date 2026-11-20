@@ -1,0 +1,25 @@
+# 3-body property campaign -- the CLEAN 5 (density, RDF, self-diffusion, Cp, alpha_V).
+# Same salts as the 2-body md_jobs.txt; temps for the collapsed cations updated from the
+# progress-log findings. Models from fit_3body_models.sh. The fast 3-body backend is
+# auto-selected by md_moltensaltcalc.py (degree-3 -> UF3Fast3BodyCalculator).
+#
+#     <model_dir>  <prefix>  <cation>  <T1> <T2> <T3>
+#
+# Run in TWO batches -- Mg/Ca/Zn need dt=0.5 fs (the 1 fs runs produced fake evaporation;
+# Daniel's timestep test showed Ca/Zn hold at 0.5 fs, and Mg is the one true 2-body collapse):
+#   JOBS_FILE=scripts/md_jobs_3body.txt bash scripts/run_md_jobs.sh 1 8               # 1 fs salts
+#   DT_FS=0.5 JOBS_FILE=scripts/md_jobs_3body.txt bash scripts/run_md_jobs.sh 9 11    # 0.5 fs salts
+#
+# --- 1 fs batch (jobs 1-8): monovalents + soft divalents + Zr (no timestep problem) ---
+3body_LiCl   LiCl  Li   920  1070 1220
+3body_NaCl   NaCl  Na   1100 1250 1400
+3body_KCl    KCl   K    1075 1225 1375
+3body_RbCl   RbCl  Rb   1020 1170 1320
+3body_CsCl   CsCl  Cs   950  1100 1250
+3body_SrCl   SrCl2 Sr   1180 1330 1480
+3body_BaCl   BaCl2 Ba   1270 1380 1490
+3body_ZrCl   ZrCl4 Zr   710  740  765
+# --- 0.5 fs batch (jobs 9-11): Mg (true collapse) + Ca/Zn (1 fs artifact) ---
+3body_MgCl   MgCl2 Mg   900  1000 1100
+3body_CaCl   CaCl2 Ca   1050 1150 1250
+3body_ZnCl   ZnCl2 Zn   600  780  960

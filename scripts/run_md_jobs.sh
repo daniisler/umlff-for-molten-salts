@@ -19,17 +19,18 @@ RUN="${RUN:-uv run python}"
 ATOMS="${ATOMS:-400}"
 NPT="${NPT:-60000}"
 NVT="${NVT:-60000}"
+JOBS_FILE="${JOBS_FILE:-scripts/md_jobs.txt}"   # override for the 3-body campaign
 
 # collect job lines (skip comments and blanks)
 JOBS=()
 while IFS= read -r line; do
   JOBS+=("$line")
-done < <(grep -v '^[[:space:]]*#' scripts/md_jobs.txt | grep -v '^[[:space:]]*$')
+done < <(grep -v '^[[:space:]]*#' "$JOBS_FILE" | grep -v '^[[:space:]]*$')
 total=${#JOBS[@]}
 
 start="${1:-1}"
 end="${2:-$total}"
-echo "md jobs ${start}..${end} of ${total}  |  ${ATOMS} atoms, NPT ${NPT} / NVT ${NVT}  |  RUN='${RUN}'"
+echo "md jobs ${start}..${end} of ${total} from ${JOBS_FILE}  |  ${ATOMS} atoms, NPT ${NPT} / NVT ${NVT}  |  dt=${DT_FS:-1.0} fs  |  RUN='${RUN}'"
 
 for (( i=start; i<=end; i++ )); do
   read -r model prefix cat temps <<< "${JOBS[$((i-1))]}"
