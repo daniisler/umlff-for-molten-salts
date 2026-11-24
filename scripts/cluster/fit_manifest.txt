@@ -1,11 +1,13 @@
 # MD-campaign prerequisite fits -- ONE fit per non-comment line -> one SLURM array task
-# (01_fit.slurm). These are the models the MD comparison needs that are NOT yet committed:
+# (01_fit.slurm). These are the models the MD comparison needs. On a FRESH cluster checkout
+# none of the 3-body models are committed, so all of them are fitted here:
 #   * 1 full-chemistry 2-body + ZBL  (covers every blend, Big included)
 #   * 4 blend-subsystem 3-body + ZBL (the full 12-element 3-body is intractable, ~100 GB)
-#   * 9 pure single-chloride 3-body + ZBL (the pure-salt 3-body campaign; Na, Mg already fitted)
+#   * 11 pure single-chloride 3-body + ZBL (the pure-salt 3-body campaign + the MgCl2 probe)
 # All at the locked operating points (2-body: cutoff2=8 res2=20 ridge2=1e-4 kappa=0.3;
 # 3-body: cutoff3=5 res3=10 ridge3=1e-5 kappa=0.3; ZBL r_in=4 r_out=5). Needs data/Training.extxyz.
 # Each line is a self-contained command (carve+split+fit where needed); comment lines are skipped.
+# fit_3body_models.sh skips any model whose results/3body_<X>Cl/model.json already exists.
 #
 # --- full-chemistry 2-body + ZBL (one model covers all 5 blends) ---
 uv run python scripts/fit_uf3_batched.py --mode 2body --train-file Training.extxyz --elements Cl Li Na K Rb Cs Mg Ca Sr Ba Zn Zr --n-train 2000 --frame-batch 150 --cutoff2 8 --res2 20 --weight 0.3 --ridge2 1e-4 --zbl --run-name 2body_full_zbl
@@ -14,7 +16,9 @@ uv run python scripts/make_subsystem.py --elements Cl Na K Sr --out sub_NaKSrCl.
 uv run python scripts/make_subsystem.py --elements Cl Na Mg --out sub_NaMgCl.extxyz && uv run python scripts/split_frames.py --input sub_NaMgCl.extxyz && uv run python scripts/fit_uf3.py --mode 3body --train-file sub_NaMgCl_train.extxyz --test-file sub_NaMgCl_test.extxyz --elements Cl Na Mg --cutoff3 5 --res3 10 --ridge3 1e-5 --weight 0.3 --zbl --n-train 500 --run-name 3body_NaMgCl --force
 uv run python scripts/make_subsystem.py --elements Cl Na Ca Zn --out sub_NaCaZnCl.extxyz && uv run python scripts/split_frames.py --input sub_NaCaZnCl.extxyz && uv run python scripts/fit_uf3.py --mode 3body --train-file sub_NaCaZnCl_train.extxyz --test-file sub_NaCaZnCl_test.extxyz --elements Cl Na Ca Zn --cutoff3 5 --res3 10 --ridge3 1e-5 --weight 0.3 --zbl --n-train 500 --run-name 3body_NaCaZnCl --force
 uv run python scripts/make_subsystem.py --elements Cl Na K Zn --out sub_NaKZnCl.extxyz && uv run python scripts/split_frames.py --input sub_NaKZnCl.extxyz && uv run python scripts/fit_uf3.py --mode 3body --train-file sub_NaKZnCl_train.extxyz --test-file sub_NaKZnCl_test.extxyz --elements Cl Na K Zn --cutoff3 5 --res3 10 --ridge3 1e-5 --weight 0.3 --zbl --n-train 500 --run-name 3body_NaKZnCl --force
-# --- pure single-chloride 3-body + ZBL (Na, Mg already in results/; skip-if-exists) ---
+# --- pure single-chloride 3-body + ZBL (all 11; a fresh cluster checkout has none committed) ---
+CATIONS="Na" bash scripts/fit_3body_models.sh
+CATIONS="Mg" bash scripts/fit_3body_models.sh
 CATIONS="Li" bash scripts/fit_3body_models.sh
 CATIONS="K"  bash scripts/fit_3body_models.sh
 CATIONS="Rb" bash scripts/fit_3body_models.sh
