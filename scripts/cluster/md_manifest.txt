@@ -1,0 +1,29 @@
+# UF3 MD campaign -- ONE job (one salt/blend, 3-T sweep + analysis) per non-comment line
+# -> one SLURM array task (02_md_uf3.slurm). Columns:
+#     <jobs_file>  <job_index>  <dt_fs>
+# <job_index> counts NON-COMMENT lines of <jobs_file> (the same indexing run_md_jobs.sh uses).
+# The 2-body PURE campaign is already done (Week 10 data) -> NOT repeated here.
+# dt: 0.5 fs for Mg/Ca/Zn and the Zn/Ca blends (1 fs gave fake evaporation); 1.0 fs otherwise.
+#
+# --- pure-salt 3-body campaign (md_jobs_3body.txt, 11 salts) ---
+scripts/md_jobs_3body.txt   1   1.0
+scripts/md_jobs_3body.txt   2   1.0
+scripts/md_jobs_3body.txt   3   1.0
+scripts/md_jobs_3body.txt   4   1.0
+scripts/md_jobs_3body.txt   5   1.0
+scripts/md_jobs_3body.txt   6   1.0
+scripts/md_jobs_3body.txt   7   1.0
+scripts/md_jobs_3body.txt   8   1.0
+scripts/md_jobs_3body.txt   9   0.5
+scripts/md_jobs_3body.txt  10   0.5
+scripts/md_jobs_3body.txt  11   0.5
+# --- SuperSalt blends, both backends (md_jobs_blends.txt, 9 jobs) ---
+scripts/md_jobs_blends.txt  1   1.0
+scripts/md_jobs_blends.txt  2   0.5
+scripts/md_jobs_blends.txt  3   0.5
+scripts/md_jobs_blends.txt  4   0.5
+scripts/md_jobs_blends.txt  5   0.5
+scripts/md_jobs_blends.txt  6   1.0
+scripts/md_jobs_blends.txt  7   0.5
+scripts/md_jobs_blends.txt  8   0.5
+scripts/md_jobs_blends.txt  9   0.5

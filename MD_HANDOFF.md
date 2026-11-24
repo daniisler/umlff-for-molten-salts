@@ -109,3 +109,18 @@ section 3.)
     --weight 0.3 --zbl --run-name 2body_ZnCl_zbl
   ```
   Deterministic (seed 42) — reproduces the committed models exactly.
+
+## 6. Cluster package — the complete UF3-vs-SuperSalt comparison (scripts/cluster/)
+
+The turnkey SLURM campaign that fills every comparison cell for all 11 pure salts + 5 blends
+lives in **`scripts/cluster/`** — see its `README.md`. Three phases:
+1. `01_fit.slurm` ← `fit_manifest.txt` — fits the 14 prerequisite models (1 full-chemistry
+   2-body + 4 blend-subsystem 3-body + 9 pure 3-body; Na/Mg already done).
+2. `02_md_uf3.slurm` ← `md_manifest.txt` — UF3 3-body pure (11) + blends 2-body & 3-body (9),
+   per-job dt. (The 2-body pure campaign is the Week 10 data, not repeated.)
+3. `03_md_supersalt.slurm` ← `../md_jobs_supersalt.txt` (via `run_supersalt_jobs.sh`) — the
+   SuperSalt MACE reference through our pipeline at matched T, all 11 pure + 5 blends.
+
+`bash scripts/cluster/submit_all.sh` chains them (UF3 MD afterok the fits; SuperSalt parallel).
+**Code change:** `fit_uf3_batched.py` gained `--zbl` — required, because the MD driver always
+adds the ZBL wall, so the full 2-body model must be fit on the ZBL residual.

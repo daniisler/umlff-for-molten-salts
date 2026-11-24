@@ -119,6 +119,11 @@ def run(cfg: F.RunConfig, frame_batch: int) -> None:
     test_path = cfg.data_dir / cfg.test_file
     train = F.reservoir_sample(train_path, cfg.n_train, rng, "sampling train")
     elements = cfg.elements or sorted({sym for atoms in train for sym in atoms.get_chemical_symbols()})
+    if cfg.zbl:
+        print(
+            f"[UF3-batched] ZBL baseline: subtracting (r_in={cfg.zbl_r_in}, r_out={cfg.zbl_r_out}) from train targets"
+        )
+        F.subtract_zbl(train, cfg.zbl_r_in, cfg.zbl_r_out)
     chem, basis = F.build_basis(cfg, elements)
     print(
         f"[UF3-batched] elements={len(elements)} pairs={len(chem.interactions_map[2])} "
@@ -145,6 +150,8 @@ def run(cfg: F.RunConfig, frame_batch: int) -> None:
     print(f"[UF3-batched] fit done over {n_batches} batches, coefficients finite={finite}")
 
     test = F.reservoir_sample(test_path, cfg.n_test, rng, "sampling test")
+    if cfg.zbl:
+        F.subtract_zbl(test, cfg.zbl_r_in, cfg.zbl_r_out)
     feats_test = F.featurize(test, basis, "test", n_jobs=cfg.n_jobs)
     evaluation = F.evaluate_model(model, feats_test)
 
@@ -200,6 +207,15 @@ def parse_args() -> tuple[F.RunConfig, int]:
     p.add_argument("--ridge3", type=float, default=1e-4, help="three-body ridge (L2) regularization strength")
     p.add_argument("--curv2", type=float, default=1e-6, help="two-body curvature (smoothness) penalty strength")
     p.add_argument("--curv3", type=float, default=1e-6, help="three-body curvature (smoothness) penalty strength")
+    p.add_argument(
+        "--zbl",
+        action="store_true",
+        help="fit on the ZBL-baseline residual (DFT - ZBL); the MD backend re-adds the same wall at inference",
+    )
+    p.add_argument("--zbl-r-in", type=float, default=4.0, help="ZBL full below this radius (A); must match the MD wall")
+    p.add_argument(
+        "--zbl-r-out", type=float, default=5.0, help="ZBL switched off above this radius (A); must match the MD wall"
+    )
     p.add_argument("--seed", type=int, default=42, help="random seed for reproducible frame sampling")
     p.add_argument(
         "--frame-batch",
@@ -255,6 +271,9 @@ def parse_args() -> tuple[F.RunConfig, int]:
         probe_only=a.probe_only,
         save_predictions=not a.no_predictions,
         n_jobs=a.n_jobs if a.n_jobs else F.default_n_jobs(),
+        zbl=a.zbl,
+        zbl_r_in=a.zbl_r_in,
+        zbl_r_out=a.zbl_r_out,
     )
     return cfg, a.frame_batch
 

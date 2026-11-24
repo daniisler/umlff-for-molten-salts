@@ -1,0 +1,32 @@
+# SuperSalt REFERENCE campaign -- run the published SuperSalt MACE model through our OWN
+# MoltenSaltCalc pipeline, at the SAME temperatures as the UF3 campaign, so the SuperSalt
+# column of every comparison is filled DIRECTLY (no interpolation) for all 11 pure salts
+# AND the 5 blends. No fitting needed -- data/SuperSalt-swa.model is committed.
+#
+#     <name>  <composition>  <dt_fs>  <T1> <T2> <T3>
+#
+# <name> sets the output: results/md_supersalt_<name>_<T>K/ per temperature, then
+# results/supersalt_<name>_properties.json after analysis. Temps mirror md_jobs_3body.txt
+# (pure) and md_jobs_blends.txt (blends) so SuperSalt lines up salt-for-salt, T-for-T.
+# dt: 1.0 fs for the alkali halides; 0.5 fs for anything with a divalent/tetravalent cation
+# (MACE has no hard short-range wall -> stiff bonds need the smaller step; the driver also
+# adds a ZBL safety wall + dilute start). A colon in <composition> triggers blend mode.
+#
+# --- pure salts (11) ---
+NaCl    Na   1.0   1100 1250 1400
+LiCl    Li   1.0   920  1070 1220
+KCl     K    1.0   1075 1225 1375
+RbCl    Rb   1.0   1020 1170 1320
+CsCl    Cs   1.0   950  1100 1250
+MgCl2   Mg   0.5   900  1000 1100
+CaCl2   Ca   0.5   1050 1150 1250
+SrCl2   Sr   0.5   1180 1330 1480
+BaCl2   Ba   0.5   1270 1380 1490
+ZnCl2   Zn   0.5   600  780  960
+ZrCl4   Zr   0.5   710  740  765
+# --- blends (5) -- same compositions + temps as md_jobs_blends.txt ---
+NaKSr   Na:0.16,K:0.16,Sr:0.66                                 0.5   950  1050 1150
+NaMg    Na:0.57,Mg:0.43                                        0.5   1200 1350 1500
+NaCaZn  Na:0.58,Ca:0.12,Zn:0.30                                0.5   1050 1200 1350
+NaKZn   Na:0.20,K:0.20,Zn:0.60                                 0.5   700  850  1000
+Big     Li:1,Na:1,Mg:1,K:1,Ca:1,Zn:1,Rb:1,Sr:1,Zr:1,Cs:1,Ba:1 0.5   1000 1200 1400
