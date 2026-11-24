@@ -33,12 +33,13 @@ from pathlib import Path
 
 import numpy as np
 from ase.optimize import FIRE
-from fit_uf3_fast import UF3FastCalculator  # sibling scripts/ module (on path when run as a script)
-from fit_uf3_fast_3body import UF3Fast3BodyCalculator
 from moltensaltcalc import MoltenSaltAnalyzer, MoltenSaltSimulator
 from moltensaltcalc.models.fit_uf3 import ZBLRepulsion
 from uf3.forcefield.calculator import UFCalculator
 from uf3.regression.least_squares import WeightedLinearModel
+
+from fit_uf3_fast import UF3FastCalculator  # sibling scripts/ module (on path when run as a script)
+from fit_uf3_fast_3body import UF3Fast3BodyCalculator
 
 np.random.seed(42)  # reproducible random start
 

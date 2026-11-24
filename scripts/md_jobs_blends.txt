@@ -1,0 +1,61 @@
+# SuperSalt BLEND campaign -- the 5 published blends, to extend the UF3-vs-SuperSalt
+# comparison from 4 pure salts to 9 systems. Same CLEAN-5 properties + same pipeline.
+#
+#     <model_dir>  <prefix>  <composition>  <T1> <T2> <T3>
+#
+# The <composition> field is a MOLE-FRACTION BLEND -- a colon triggers blend mode in
+# md_moltensaltcalc.py: e.g. "Na:0.57,Mg:0.43" = 0.57 NaCl . 0.43 MgCl2. Fractions are
+# normalised, scaled to ATOMS, and Cl charge-balances exactly. NO SPACES inside the field.
+# (Temperatures are SuperSalt's two reported points + a midpoint, for a 3-point alpha_V/Cp.)
+#
+# PREREQUISITE MODELS -- fit these BEFORE running (commands at the bottom):
+#   2-body: ONE full-chemistry model `2body_full_zbl` covers every blend, Big included.
+#   3-body: per-blend SUBSYSTEM models (the full 12-element 3-body is intractable, ~100 GB).
+#           Big has NO 3-body (it is full chemistry) -> Big is 2-body + SuperSalt only.
+#
+# TIMESTEP: blends with Mg/Ca/Zn are stiff -> run at 0.5 fs (DT_FS=0.5). Only NaKSr is safe
+# at 1 fs. mtknpt can still blow up for the stiffest (cf. the MgCl2 3-body crash) -> if a run
+# diverges, drop to 0.25 fs or switch the barostat to nptberendsen.
+#
+#   1 fs batch (NaKSr only -- jobs 1 and 6):
+#     JOBS_FILE=scripts/md_jobs_blends.txt bash scripts/run_md_jobs.sh 1 1
+#     JOBS_FILE=scripts/md_jobs_blends.txt bash scripts/run_md_jobs.sh 6 6
+#   0.5 fs batch (the rest):
+#     DT_FS=0.5 JOBS_FILE=scripts/md_jobs_blends.txt bash scripts/run_md_jobs.sh 2 5
+#     DT_FS=0.5 JOBS_FILE=scripts/md_jobs_blends.txt bash scripts/run_md_jobs.sh 7 9
+#
+# SuperSalt reference for each blend: scripts/md_supersalt.py with the SAME composition field,
+# e.g.  uv run python scripts/md_supersalt.py "Na:0.58,Ca:0.12,Zn:0.30" --temp 1050 --dt 0.5
+#
+# --- 2-body blends (full-chemistry 2body_full_zbl model) ---
+2body_full_zbl  NaKSr_2b    Na:0.16,K:0.16,Sr:0.66                                    950 1050 1150
+2body_full_zbl  NaMg_2b     Na:0.57,Mg:0.43                                           1200 1350 1500
+2body_full_zbl  NaCaZn_2b   Na:0.58,Ca:0.12,Zn:0.30                                   1050 1200 1350
+2body_full_zbl  NaKZn_2b    Na:0.20,K:0.20,Zn:0.60                                    700 850 1000
+2body_full_zbl  Big_2b      Li:1,Na:1,Mg:1,K:1,Ca:1,Zn:1,Rb:1,Sr:1,Zr:1,Cs:1,Ba:1    1000 1200 1400
+# --- 3-body blends (per-blend subsystem models; NO Big) ---
+3body_NaKSrCl   NaKSr_3b    Na:0.16,K:0.16,Sr:0.66                                    950 1050 1150
+3body_NaMgCl    NaMg_3b     Na:0.57,Mg:0.43                                           1200 1350 1500
+3body_NaCaZnCl  NaCaZn_3b   Na:0.58,Ca:0.12,Zn:0.30                                   1050 1200 1350
+3body_NaKZnCl   NaKZn_3b    Na:0.20,K:0.20,Zn:0.60                                    700 850 1000
+#
+# NB: "Big" cation fractions are ASSUMED EQUIMOLAR (the archive gives no structure file) --
+# confirm against Shen et al. Nat. Commun. 2025 before trusting the Big density number.
+#
+# ============ FIT THE PREREQUISITE MODELS FIRST ============
+# Full-chemistry 2-body + ZBL (one model, covers every blend). Use the BATCHED fit -- the
+# full 12-element design matrix OOMs a normal node otherwise:
+#   uv run python scripts/fit_uf3_batched.py --mode 2body --train-file Training.extxyz \
+#     --elements Cl Li Na K Rb Cs Mg Ca Sr Ba Zn Zr --n-train 2000 --frame-batch 150 \
+#     --cutoff2 8 --res2 20 --weight 0.3 --ridge2 1e-4 --zbl --run-name 2body_full_zbl
+#
+# Per-blend 3-body + ZBL subsystems (locked 3-body point: cutoff3 5, res3 10, ridge3 1e-5, kappa 0.3):
+#   for els in "Na K Sr" "Na Mg" "Na Ca Zn" "Na K Zn"; do
+#     tag="3body_$(echo $els | tr -d ' ')Cl"
+#     uv run python scripts/make_subsystem.py --elements Cl $els --out "sub_$(echo $els | tr -d ' ')Cl.extxyz"
+#     uv run python scripts/split_frames.py --input "sub_$(echo $els | tr -d ' ')Cl.extxyz"
+#     uv run python scripts/fit_uf3.py --mode 3body \
+#       --train-file "sub_$(echo $els | tr -d ' ')Cl_train.extxyz" \
+#       --test-file  "sub_$(echo $els | tr -d ' ')Cl_test.extxyz" --elements Cl $els \
+#       --cutoff3 5 --res3 10 --ridge3 1e-5 --weight 0.3 --zbl --n-train 500 --run-name "$tag"
+#   done
