@@ -39,17 +39,20 @@ echo "supersalt jobs ${start}..${end} of ${total} from ${JOBS_FILE}  |  ${ATOMS}
 for (( i=start; i<=end; i++ )); do
   read -r name comp dt temps <<< "${JOBS[$((i-1))]}"
   [ -z "${name:-}" ] && continue
-  echo "[job ${i}/${total}] supersalt ${name}  (comp ${comp}; dt ${dt} fs; T = ${temps})"
+  # self-describing tag so new runs never overwrite others in the SHARED results/ folder
+  tag="${RUN_TAG:-dt${dt}_n${ATOMS}_npt${NPT}_nvt${NVT}}"
+  pfx="${name}_${tag}"
+  echo "[job ${i}/${total}] supersalt ${pfx}  (comp ${comp}; dt ${dt} fs; T = ${temps})"
   for temp in ${temps}; do
     tK="${temp%.*}"
-    echo "=========== supersalt ${name} @ ${tK} K  (${ATOMS} atoms, dt ${dt} fs) ==========="
+    echo "=========== supersalt ${pfx} @ ${tK} K  (${ATOMS} atoms, dt ${dt} fs) ==========="
     ${RUN} scripts/md_supersalt.py "${comp}" --temp "${temp}" --dt "${dt}" \
       --atoms "${ATOMS}" --npt "${NPT}" --nvt "${NVT}" --eq "${EQ}" \
-      --model "${MODEL}" --label "${name}_${tK}K" \
-      || echo "WARN: supersalt ${name} @ ${tK} K did not finish"
+      --model "${MODEL}" --label "${pfx}_${tK}K" \
+      || echo "WARN: supersalt ${pfx} @ ${tK} K did not finish"
   done
-  echo "=== analyse supersalt_${name}: density, RDF, diffusion, Cp, alpha_V ==="
-  ${RUN} scripts/analyze_properties.py "supersalt_${name}" ${temps} \
-    || echo "WARN: analysis of supersalt_${name} failed"
+  echo "=== analyse supersalt_${pfx}: density, RDF, diffusion, Cp, alpha_V ==="
+  ${RUN} scripts/analyze_properties.py "supersalt_${pfx}" ${temps} \
+    || echo "WARN: analysis of supersalt_${pfx} failed"
 done
-echo "done jobs ${start}..${end}. Properties in results/supersalt_<name>_properties.json."
+echo "done jobs ${start}..${end}. Properties in results/supersalt_<name>_<tag>_properties.json."

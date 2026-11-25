@@ -33,13 +33,12 @@ from pathlib import Path
 
 import numpy as np
 from ase.optimize import FIRE
+from fit_uf3_fast import UF3FastCalculator  # sibling scripts/ module (on path when run as a script)
+from fit_uf3_fast_3body import UF3Fast3BodyCalculator
 from moltensaltcalc import MoltenSaltAnalyzer, MoltenSaltSimulator
 from moltensaltcalc.models.fit_uf3 import ZBLRepulsion
 from uf3.forcefield.calculator import UFCalculator
 from uf3.regression.least_squares import WeightedLinearModel
-
-from fit_uf3_fast import UF3FastCalculator  # sibling scripts/ module (on path when run as a script)
-from fit_uf3_fast_3body import UF3Fast3BodyCalculator
 
 np.random.seed(42)  # reproducible random start
 
@@ -54,14 +53,26 @@ def _arg(i, default):  # pylint: disable=redefined-outer-name
     return sys.argv[i] if len(sys.argv) > i and sys.argv[i] != "" else default
 
 
-def build_composition(cations: list[str], target: int = TARGET_ATOMS):  # pylint: disable=redefined-outer-name
-    """Charge-balanced ~target-atom melt: equal cation counts m, Cl balances charge."""
+def build_composition(cations: list[str], target: int = TARGET_ATOMS, fracs: dict | None = None):  # pylint: disable=redefined-outer-name
+    """Charge-balanced ~target-atom melt, Cl balancing the cation charge.
+
+    Default (fracs=None): equal cation counts m. If `fracs` (mole fractions keyed by
+    cation) is given, cation counts follow those fractions instead -- the blend mode."""
     # pylint: disable=redefined-outer-name
-    charge_per_unit = sum(CHARGE[c] for c in cations)  # Cl per 1-of-each-cation unit
-    atoms_per_unit = len(cations) + charge_per_unit
-    m = max(1, round(target / atoms_per_unit))
-    n_cations = [m] * len(cations)
-    n_cl = m * charge_per_unit
+    if fracs is None:
+        charge_per_unit = sum(CHARGE[c] for c in cations)  # Cl per 1-of-each-cation unit
+        atoms_per_unit = len(cations) + charge_per_unit
+        m = max(1, round(target / atoms_per_unit))
+        n_cations = [m] * len(cations)
+        n_cl = m * charge_per_unit
+        return n_cations, n_cl
+    tot = sum(fracs[c] for c in cations)
+    f = {c: fracs[c] / tot for c in cations}  # normalise to sum 1
+    cl_per_unit = sum(f[c] * CHARGE[c] for c in cations)  # Cl per 1 cation (fraction-weighted)
+    atoms_per_unit = 1.0 + cl_per_unit
+    m = max(1, round(target / atoms_per_unit))  # total cation count
+    n_cations = [max(1, round(f[c] * m)) for c in cations]
+    n_cl = sum(n * CHARGE[c] for n, c in zip(n_cations, cations, strict=False))
     return n_cations, n_cl
 
 
@@ -112,18 +123,28 @@ model_elements = list(sim.calc.elements)  # model's element symbols, exposed by 
 cations = [e for e in model_elements if e != ANION]
 if ANION not in model_elements:
     raise SystemExit(f"Model elements {model_elements} do not include the anion '{ANION}'.")
+fracs = None
 if _CATION_OVERRIDE:
-    wanted = [c.strip() for c in _CATION_OVERRIDE.split(",") if c.strip()]
+    tokens = [c.strip() for c in _CATION_OVERRIDE.split(",") if c.strip()]
+    if any(":" in t for t in tokens):
+        # mole-fraction blend, e.g. "Na:0.57,Mg:0.43" -> {'Na': 0.57, 'Mg': 0.43}
+        fracs = {}
+        for t in tokens:
+            name, _, frac = t.partition(":")
+            fracs[name.strip()] = float(frac)
+        wanted = list(fracs)
+    else:
+        wanted = tokens
     missing = [c for c in wanted if c not in cations]
     if missing:
         raise SystemExit(f"Requested cations {missing} not in model elements {cations}.")
     cations = wanted
-    print(f"[cation override] restricting melt to {cations} (subset of model elements)")
+    print(f"[cation override] melt = {cations}" + (f"  blend {fracs}" if fracs else "  (subset)"))
 unknown = [c for c in cations if c not in CHARGE]
 if unknown:
     raise SystemExit(f"No formal charge on record for {unknown}; add them to CHARGE.")
 TARGET = int(_TARGET_OVERRIDE) if _TARGET_OVERRIDE else TARGET_ATOMS
-n_cations, n_cl = build_composition(cations, target=TARGET)
+n_cations, n_cl = build_composition(cations, target=TARGET, fracs=fracs)
 
 LABEL = _arg(5, "".join(cations) + ANION + f"_{int(T_K)}K")
 OUT = Path("results") / f"md_{LABEL}"
